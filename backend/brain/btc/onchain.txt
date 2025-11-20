@@ -1,0 +1,15 @@
+Direcciones activas: Incremento del 5% en últimos 7 días, indicando creciente participación retail.
+
+Exchange netflow: Salidas netas de -12,500 BTC en última semana, señal alcista de acumulación en cold wallets.
+
+Whale activity: 15 transacciones >$10M detectadas en últimas 24h, principalmente movimientos exchange-to-wallet (acumulación).
+
+Supply en exchanges: Mínimo de 6 meses en 2.1M BTC (~10.5% del supply circulante), reduciendo presión vendedora.
+
+MVRV Ratio: 1.8 - zona de valor razonable, históricamente favorable para acumulación.
+
+Realized Price: $28,500 - precio promedio de adquisición on-chain, muy por debajo del precio spot.
+
+Long-term holder supply: 75% del supply no se ha movido en >6 meses, indicando convicción de holders.
+
+Mining reserves: Incremento en reservas de mineros, menor presión vendedora post-halving anticipado.

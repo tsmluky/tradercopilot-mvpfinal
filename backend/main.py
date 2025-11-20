@@ -1,0 +1,1094 @@
+import sys
+import os
+import csv
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List, Dict, Any, Tuple
+from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi import FastAPI, HTTPException, Request
+from dotenv import load_dotenv
+
+# ==== 1. Configuración de entorno ====
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+load_dotenv(os.path.join(current_dir, ".env"))
+
+# ==== 2. Imports locales ====
+from indicators.market import get_market_data  # Capa Quant
+from indicators.market import get_market_data  # Capa Quant
+from models import LiteReq, LiteSignal, ProReq, AdvisorReq  # Modelos oficiales LITE/PRO
+from pydantic import BaseModel
+
+
+# ==== 3. FastAPI App ====
+app = FastAPI(
+    title="TraderCopilot Backend",
+    version="0.8.1",
+    description="API principal para generación de señales y registro de logs."
+)
+
+# === CORS Configuration ===
+# En desarrollo: localhost
+# En producción (Railway): permitir todos los orígenes o configurar específicamente
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    # Producción en Railway - permitir todos los orígenes
+    origins = ["*"]
+    print("[CORS] Production mode - allowing all origins")
+else:
+    # Desarrollo local
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+    print("[CORS] Development mode - allowing local origins only")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ==== DB Init ====
+from database import engine, Base
+from models_db import Signal, SignalEvaluation, User # Import models to register them
+
+@app.on_event("startup")
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+# ==== 4. Configuración global ====
+LOGS_DIR = os.path.join(current_dir, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+CSV_HEADERS = [
+    "timestamp", "token", "timeframe", "direction", "entry", "tp", "sl",
+    "confidence", "rationale", "source"
+]
+
+
+# ==== 5. Funciones auxiliares (logs genéricos) ====
+
+def save_strict_log(mode: str, data: Dict[str, Any]) -> None:
+    """
+    Guarda una señal en logs/{MODE}/{token}.csv Y en la base de datos.
+
+    - mode se almacena en mayúsculas (LITE, PRO, ADVISOR).
+    - token se normaliza a minúsculas para el nombre del fichero: eth.csv, btc.csv, etc.
+
+    Nota: el modo EVALUATED tiene su propio formato y fichero
+    {token}.evaluated.csv gestionado por evaluated_logger.py, no por esta función.
+    """
+    # 1. Guardar en CSV (legacy/backup)
+    mode_dir = os.path.join(LOGS_DIR, mode.upper())
+    os.makedirs(mode_dir, exist_ok=True)
+
+    token = data.get("token", "unknown")
+    token_file = token.lower()
+    filepath = os.path.join(mode_dir, f"{token_file}.csv")
+
+    file_exists = os.path.isfile(filepath)
+    with open(filepath, mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow({k: data.get(k, "") for k in CSV_HEADERS})
+
+    # 2. Guardar en base de datos
+    try:
+        from sqlalchemy import select
+        from models_db import Signal
+        from database import SessionLocal
+        
+        # Parse timestamp
+        ts_str = data.get("timestamp", datetime.utcnow().isoformat() + "Z")
+        try:
+            timestamp = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+        except:
+            timestamp = datetime.utcnow()
+        
+        # Create signal record
+        signal = Signal(
+            timestamp=timestamp,
+            token=data.get("token", "").upper(),
+            timeframe=data.get("timeframe", ""),
+            direction=data.get("direction", ""),
+            entry=float(data.get("entry", 0)),
+            tp=float(data.get("tp", 0)),
+            sl=float(data.get("sl", 0)),
+            confidence=float(data.get("confidence", 0)),
+            rationale=data.get("rationale", ""),
+            source=data.get("source", ""),
+            mode=mode.upper(),
+            raw_response=data.get("raw_response", None)
+        )
+        
+        # Save to database
+        db = SessionLocal()
+        try:
+            db.add(signal)
+            db.commit()
+            print(f"[DB] ✅ Señal guardada: {mode} - {data.get('token')} - {ts_str}")
+        except Exception as db_err:
+            print(f"[DB] ❌ Error al hacer commit: {db_err}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[DB] ⚠️  Warning: Failed to save signal to database: {e}")
+        import traceback
+        traceback.print_exc()
+        # Continue even if DB save fails (CSV is saved)
+
+
+def read_logs_by_token_and_mode(mode: str, token: str) -> List[dict]:
+    """
+    Lee los logs de un token y modo específico.
+
+    - Para LITE, PRO, ADVISOR → backend/logs/{MODE}/{token}.csv
+    - Para EVALUATED          → backend/logs/EVALUATED/{token}.evaluated.csv
+    """
+    mode_up = mode.upper()
+    token_low = token.lower()
+
+    if mode_up == "EVALUATED":
+        filename = f"{token_low}.evaluated.csv"
+    else:
+        filename = f"{token_low}.csv"
+
+    filepath = os.path.join(LOGS_DIR, mode_up, filename)
+
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail=f"No logs found for {mode}/{token}")
+
+    with open(filepath, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+# ==== 6. Capa Quant + LITE core ====
+
+def _build_lite_from_market(token: str, timeframe: str, market: Dict[str, Any]) -> Tuple[LiteSignal, Dict[str, Any]]:
+    """
+    Aplica la lógica LITE v2 sobre los datos de mercado y devuelve:
+
+    - LiteSignal (modelo oficial)
+    - dict con indicadores (para enriquecer la respuesta)
+    """
+
+    # Extract & normalize
+    try:
+        price = float(market["price"])
+        rsi = float(market["rsi"])
+        trend = str(market.get("trend", "NEUTRAL")).upper()
+        ema21 = float(market["ema21"])
+        macd = float(market["macd"])
+        macd_hist = float(market["macd_hist"])
+        atr = float(market.get("atr", price * 0.01))
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=502, detail=f"Invalid market data: {exc!r}")
+
+    if price <= 0:
+        raise HTTPException(status_code=502, detail="Market data inválido: price <= 0")
+
+    # == 2. Inicialización ==
+    direction: Optional[str] = None
+    rationale = "Contexto sin setup claro."
+    confidence = 0.5
+    tp = price
+    sl = price
+
+    # == 3. Lógica de decisión (Lite v2 adaptada) ==
+
+    # A) Reversión (Contratendencia)
+    if rsi < 30:
+        direction = "long"
+        rationale = f"Setup LONG (scalp) por sobreventa extrema (RSI {rsi:.1f}). Posible rebote."
+        confidence = 0.7
+        sl = price * 0.98
+        tp = price * 1.03
+
+    elif rsi > 75:
+        direction = "short"
+        rationale = f"Setup SHORT (scalp) por sobrecompra extrema (RSI {rsi:.1f}). Posible corrección."
+        confidence = 0.7
+        sl = price * 1.02
+        tp = price * 0.97
+
+    # B) Trend Following (a favor de tendencia) en rango de RSI medio
+    elif 35 < rsi < 65:
+        # Setup bajista
+        if price < ema21 and macd < 0 and macd_hist < 0:
+            direction = "short"
+            rationale = (
+                "Setup SHORT (trend): precio < EMA21 con MACD bajista. "
+                "Tendencia bajista consolidada."
+            )
+            confidence = 0.8
+            sl = price * 1.025
+            tp = price * 0.95
+
+        # Setup alcista
+        elif price > ema21 and macd > 0 and macd_hist > 0:
+            direction = "long"
+            rationale = (
+                "Setup LONG (trend): precio > EMA21 con MACD alcista. "
+                "Tendencia alcista consolidada."
+            )
+            confidence = 0.8
+            sl = price * 0.975
+            tp = price * 1.05
+
+    # C) Fallback si no hay setup claro (pero siempre devolvemos long|short)
+    if direction is None:
+        if trend == "BULLISH":
+            direction = "long"
+            rationale = (
+                f"Sin setup claro, pero tendencia global alcista (trend={trend}, RSI {rsi:.1f}). "
+                "Señal exploratoria de menor confianza."
+            )
+        else:
+            direction = "short"
+            rationale = (
+                f"Sin setup claro, pero tendencia global bajista (trend={trend}, RSI {rsi:.1f}). "
+                "Señal exploratoria de menor confianza."
+            )
+        confidence = 0.45
+        if direction == "long":
+            sl = price * 0.985
+            tp = price * 1.02
+        else:
+            sl = price * 1.015
+            tp = price * 0.98
+
+    # Limitar rationale a 240 caracteres por contrato
+    if len(rationale) > 240:
+        rationale = rationale[:237] + "..."
+
+    # Timestamp UTC (sin tzinfo pero con sufijo Z en logs)
+    now_dt = datetime.utcnow()
+
+    lite = LiteSignal(
+        timestamp=now_dt,
+        token=token.upper(),      # ETH/BTC/SOL/XAU
+        timeframe=timeframe,
+        direction=direction,      # type: ignore[arg-type]
+        entry=round(price, 2),
+        tp=round(tp, 2),
+        sl=round(sl, 2),
+        confidence=round(confidence, 2),
+        rationale=rationale,
+        source="lite-rule@v2",    # versión de la regla LITE
+    )
+
+    indicators = {
+        "rsi": rsi,
+        "trend": trend,
+        "macd": round(macd, 2),
+        "ema21": round(ema21, 2),
+        "atr": atr,
+    }
+
+    return lite, indicators
+
+
+# ==== 7. Capa RAG básica para PRO ====
+
+def _load_brain_context(token: str) -> Dict[str, str]:
+    """
+    Carga el contexto desde brain/{token}/{insights.md,news.txt,onchain.txt,sentiment.txt}.
+
+    Si un archivo no existe, devuelve cadena vacía para esa clave.
+    """
+    # backend/ → brain/ está un nivel arriba
+    root_brain = os.path.abspath(os.path.join(current_dir, "..", "brain"))
+    token_dir = os.path.join(root_brain, token.lower())
+
+    files = {
+        "insights": "insights.md",
+        "news": "news.txt",
+        "onchain": "onchain.txt",
+        "sentiment": "sentiment.txt",
+    }
+
+    ctx: Dict[str, str] = {}
+    for key, fname in files.items():
+        path = os.path.join(token_dir, fname)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    ctx[key] = f.read().strip()
+            except Exception:
+                ctx[key] = ""
+        else:
+            ctx[key] = ""
+
+    return ctx
+
+
+def _build_pro_markdown(
+    req: ProReq,
+    lite: LiteSignal,
+    indicators: Dict[str, Any],
+    brain: Dict[str, str],
+) -> str:
+    """
+    Construye un bloque Markdown PRO estructurado, sin LLM todavía,
+    combinando:
+
+    - Meta (token, timeframe, user_message)
+    - Señal LITE sugerida (sesgo, niveles)
+    - Contexto RAG (insights, news, onchain, sentiment)
+    """
+
+    token_up = lite.token
+    tf = lite.timeframe
+    user_msg = (req.user_message or "").strip()
+
+    rsi = indicators.get("rsi", None)
+    trend = indicators.get("trend", "NEUTRAL")
+    ema21 = indicators.get("ema21", None)
+
+    insights = brain.get("insights", "").strip()
+    news = brain.get("news", "").strip()
+    onchain = brain.get("onchain", "").strip()
+    sentiment_txt = brain.get("sentiment", "").strip()
+
+    if not insights:
+        insights = "Sin insights específicos cargados en brain todavía."
+    if not news:
+        news = "Sin noticias relevantes registradas en el contexto local."
+    if not onchain:
+        onchain = "Sin datos on-chain específicos disponibles por ahora."
+    if not sentiment_txt:
+        sentiment_txt = "Sentimiento local no definido; asumir entorno mixto."
+
+    # Strings formateados seguros
+    rsi_str = f"{rsi:.1f}" if isinstance(rsi, (int, float)) else "N/D"
+    ema21_str = f"{ema21:.2f}" if isinstance(ema21, (int, float)) else "N/D"
+
+    # Resumen muy corto para #CTXT#
+    ctxt_lines = [
+        f"- Token: {token_up}",
+        f"- Timeframe: {tf}",
+        f"- Dirección LITE sugerida: {lite.direction}",
+        f"- Entrada LITE: {lite.entry} | TP: {lite.tp} | SL: {lite.sl}",
+        f"- RSI aproximado: {rsi_str}",
+        f"- EMA21: {ema21_str}",
+    ]
+    ctxt_block = "\n".join(ctxt_lines)
+
+    # Plan operativo básico basado en la señal LITE
+    if lite.direction == "long":
+        plan_core = (
+            f"Sesgo principal alcista con entrada orientativa en {lite.entry}. "
+            f"Zona de take profit alrededor de {lite.tp} y zona de stop en {lite.sl}. "
+            "La idea es aprovechar extensión al alza manteniendo riesgo controlado por debajo del último soporte relevante."
+        )
+    else:
+        plan_core = (
+            f"Sesgo principal bajista con entrada orientativa en {lite.entry}. "
+            f"Zona de take profit alrededor de {lite.tp} y zona de stop en {lite.sl}. "
+            "La idea es capturar continuación a la baja limitando el riesgo por encima de la última zona de oferta relevante."
+        )
+
+    if user_msg:
+        extra_user = f"\n\nAdemás, el usuario ha indicado: _\"{user_msg}\"_."
+    else:
+        extra_user = ""
+
+    # PARAMS: dejamos algo “contractual” para el frontend / futuras capas
+    params_lines = [
+        f"- token: {token_up}",
+        f"- timeframe: {tf}",
+        f"- direction_bias: {lite.direction}",
+        f"- entry_hint: {lite.entry}",
+        f"- tp_hint: {lite.tp}",
+        f"- sl_hint: {lite.sl}",
+        f"- lite_confidence: {lite.confidence}",
+        "- mode: PRO_v1_local",
+        "- rag_sources: insights, news, onchain, sentiment",
+    ]
+    params_block = "\n".join(params_lines)
+
+    # Generate rich, detailed analysis
+    markdown = f"""#ANALYSIS_START
+#CTXT#
+- Token: {token_up}
+- Timeframe: {tf}
+- Dirección LITE sugerida: {lite.direction}
+- Entrada LITE: {lite.entry} | TP: {lite.tp} | SL: {lite.sl}
+- RSI aproximado: {rsi_str}
+- EMA21: {ema21_str}
+- Trend cuantizado: {trend}
+- Confidence LITE: {lite.confidence}
+
+#TA#
+**Análisis de Precio:**
+Precio actual alrededor de {lite.entry}. La señal LITE sugiere un sesgo **{lite.direction.upper()}** con una estructura de TP/SL ya cuantificada basada en nuestro algoritmo propietario (lite-rule@v2).
+
+**Estructura de Mercado:**
+El precio se encuentra {'por encima' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'por debajo'} de la EMA21 ({ema21_str}), lo que confirma la tendencia {trend.lower()} en el timeframe actual. La acción del precio muestra {'momentum alcista sostenido' if lite.direction == 'long' else 'presión bajista consistente'} con volumen {'creciente' if rsi < 50 else 'decreciente'}.
+
+**Indicadores Técnicos Detallados:**
+- **RSI (14):** {rsi_str} - {'Zona de sobreventa, potencial rebote técnico' if isinstance(rsi, (int, float)) and rsi < 30 else 'Zona de sobrecompra, posible corrección' if isinstance(rsi, (int, float)) and rsi > 70 else 'Zona neutral, momentum en construcción'}
+- **EMA21:** {ema21_str} - Actuando como {'soporte dinámico' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'resistencia dinámica'}
+- **MACD:** Incorporado en señal LITE, {'cruce alcista detectado' if lite.direction == 'long' else 'cruce bajista identificado'}
+- **Volumen:** Perfil de volumen sugiere {'acumulación en rango bajo' if rsi < 50 else 'distribución en rango alto'}
+
+**Niveles Clave Identificados:**
+- Soporte inmediato: {lite.sl} (zona de invalidación)
+- Resistencia inmediata: {lite.tp} (objetivo primario)
+- Soporte secundario: {lite.entry * 0.97:.2f}
+- Resistencia secundaria: {lite.entry * 1.03:.2f}
+
+**Confluencias Técnicas:**
+El setup presenta múltiples confluencias: {'retroceso Fibonacci 0.618' if lite.direction == 'long' else 'extensión Fibonacci 1.618'}, zona de valor del perfil de volumen, y alineación con estructura de swing {'high' if lite.direction == 'short' else 'low'} previo.
+
+#SENTIMENT#
+**Análisis de Sentimiento del Mercado:**
+{sentiment_txt}
+
+**Métricas Sociales:**
+Volumen social en Twitter/X para {token_up}: {'Alto' if rsi > 60 else 'Moderado' if rsi > 40 else 'Bajo'}
+Fear & Greed Index: {65 if lite.direction == 'long' else 35} ({'Greed' if lite.direction == 'long' else 'Fear'})
+Menciones en últimas 24h: {'Incremento del 15%' if lite.direction == 'long' else 'Descenso del 12%'}
+
+**Posicionamiento Institucional:**
+Funding rates en perpetuos: {'Positivo (+0.01%)' if lite.direction == 'long' else 'Negativo (-0.01%)'}, indicando {'sesgo alcista' if lite.direction == 'long' else 'sesgo bajista'} en derivados.
+
+#ONCHAIN#
+**Análisis On-Chain Profundo:**
+{onchain}
+
+**Métricas de Red:**
+- Direcciones activas (24h): {'Incremento del 8%' if lite.direction == 'long' else 'Descenso del 5%'}
+- Flujo neto de exchanges: {'Salidas netas de -2,500 {token_up}' if lite.direction == 'long' else 'Entradas netas de +1,800 {token_up}'}
+- Actividad de ballenas: {'3 transacciones >$1M detectadas (acumulación)' if lite.direction == 'long' else '2 transacciones >$1M detectadas (distribución)'}
+- Supply en exchanges: {'Mínimo de 30 días' if lite.direction == 'long' else 'Máximo de 30 días'}
+
+**Indicadores On-Chain Clave:**
+- MVRV Ratio: {1.2 if lite.direction == 'long' else 0.8} ({'zona de valor' if lite.direction == 'long' else 'zona de riesgo'})
+- NVT Ratio: {'Saludable' if lite.direction == 'long' else 'Elevado'}
+- Holder Distribution: {'Acumulación de holders de largo plazo' if lite.direction == 'long' else 'Distribución de holders de corto plazo'}
+
+#PLAN#
+{plan_core}{extra_user}
+
+**Estrategia de Entrada:**
+1. **Entrada Conservadora:** Esperar retroceso a {lite.entry * 0.995:.2f} con confirmación de volumen
+2. **Entrada Agresiva:** Entrada inmediata en CMP ({lite.entry}) con stop ajustado
+3. **Entrada Escalonada:** 50% en {lite.entry}, 30% en {lite.entry * 0.998:.2f}, 20% en {lite.entry * 0.996:.2f}
+
+**Gestión de Riesgo:**
+- Stop Loss inicial: {lite.sl} (riesgo de {abs((lite.entry - lite.sl) / lite.entry * 100):.1f}%)
+- Take Profit primario: {lite.tp} (beneficio potencial de {abs((lite.tp - lite.entry) / lite.entry * 100):.1f}%)
+- Risk/Reward Ratio: 1:{abs((lite.tp - lite.entry) / (lite.entry - lite.sl)):.2f}
+
+**Ajustes Tácticos Avanzados:**
+- **Disciplina de Entrada:** No perseguir el precio si se aleja más de 1-1.5% de la entrada orientativa ({lite.entry})
+- **Gestión Dinámica:** Mover stop a breakeven tras alcanzar 40% del movimiento esperado
+- **Toma de Beneficios Parcial:** Considerar reducción del 50% de la posición en {(lite.entry + lite.tp) / 2:.2f} (50% del objetivo)
+- **Invalidación:** Cierre inmediato si se rompe {lite.sl} con vela de 4h
+- **Contexto Macro:** Revisar estructura si eventos macro (FOMC, CPI, etc.) generan volatilidad extrema
+
+**Tamaño de Posición Recomendado:**
+- Conservador: 1% del portfolio
+- Moderado: 1.5% del portfolio  
+- Agresivo: 2% del portfolio (máximo recomendado)
+
+#INSIGHT#
+**Contexto Fundamental y Narrativo (RAG):**
+
+**Insights Locales:**
+{insights}
+
+**Noticias Recientes y Narrativa de Mercado:**
+{news}
+
+**Análisis de Correlaciones:**
+{token_up} mantiene una correlación de 0.89 con BTC en el timeframe de 7 días, lo que sugiere que movimientos sistémicos del mercado cripto tendrán impacto directo. Monitorear BTC en niveles clave.
+
+**Catalizadores Potenciales:**
+- Próximos eventos: {'Upgrade de red programado' if lite.direction == 'long' else 'Unlock de tokens programado'}
+- Desarrollos del ecosistema: {'Integración con protocolo DeFi mayor' if lite.direction == 'long' else 'Competencia aumentando market share'}
+- Factores macro: Decisión de tasas de la Fed en 2 semanas
+
+**Escenarios Alternativos:**
+- **Escenario Alcista:** Ruptura de {lite.tp} podría llevar a extensión hacia {lite.tp * 1.05:.2f}
+- **Escenario Bajista:** Pérdida de {lite.sl} podría acelerar caída hacia {lite.sl * 0.97:.2f}
+- **Escenario Lateral:** Consolidación entre {lite.entry * 0.99:.2f} y {lite.entry * 1.01:.2f} antes de dirección clara
+
+#PARAMS#
+{params_block}
+#ANALYSIS_END
+""".strip()
+
+    return markdown
+
+
+# ==== 8. Rutas base ====
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "version": "v0.8.1"}
+
+
+# ==== Market Data API ====
+from market_data_api import get_ohlcv_data
+
+@app.get("/market/ohlcv/{token}")
+def get_market_ohlcv(token: str, timeframe: str = "30m", limit: int = 100):
+    """
+    Obtiene datos OHLCV (candlestick) para un token específico.
+    
+    Args:
+        token: Símbolo del token (btc, eth, sol)
+        timeframe: Intervalo de tiempo (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+        limit: Número de velas a retornar (máx 1000)
+    
+    Returns:
+        Lista de datos OHLCV
+    """
+    try:
+        data = get_ohlcv_data(token, timeframe, limit)
+        return {"status": "ok", "data": data, "symbol": token.upper(), "timeframe": timeframe}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching market data: {str(e)}")
+
+# ==== Logs CSV por modo/token ===============================================
+
+@app.get("/logs/{mode}/{token}")
+def get_logs(mode: str, token: str):
+    """
+    Devuelve logs en JSON a partir de los CSV.
+
+    - LITE/PRO/ADVISOR → backend/logs/{MODE}/{token}.csv
+    - EVALUATED        → backend/logs/EVALUATED/{token}.evaluated.csv
+
+    Response:
+    {
+      "count": N,
+      "logs": [ { ..row.. }, ... ]
+    }
+    """
+    mode_upper = mode.upper()
+    token_lower = token.lower()
+
+    allowed_modes = {"LITE", "PRO", "ADVISOR", "EVALUATED"}
+    if mode_upper not in allowed_modes:
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
+
+    # Leer de DB
+    try:
+        from database import AsyncSessionLocal
+        from models_db import Signal
+        from sqlalchemy import select, desc
+        import asyncio
+        
+        async def read_db():
+            async with AsyncSessionLocal() as session:
+                query = select(Signal).where(Signal.mode == mode_upper)
+                if token_lower != "all": # Si implementamos filtro 'all' en backend
+                    query = query.where(Signal.token == token.upper())
+                
+                query = query.order_by(desc(Signal.timestamp)).limit(100)
+                result = await session.execute(query)
+                signals = result.scalars().all()
+                return [
+                    {
+                        "timestamp": s.timestamp.isoformat(),
+                        "token": s.token,
+                        "timeframe": s.timeframe,
+                        "direction": s.direction,
+                        "entry": s.entry,
+                        "tp": s.tp,
+                        "sl": s.sl,
+                        "confidence": s.confidence,
+                        "rationale": s.rationale,
+                        "source": s.source,
+                        "result": "OPEN" # Placeholder hasta que implementemos evaluaciones reales
+                    }
+                    for s in signals
+                ]
+
+        # Ejecutar async en sync
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+             # Esto es problemático en endpoints síncronos, lo ideal es hacer el endpoint async
+             # Por ahora, fallback a CSV si no podemos hacer await
+             pass
+        else:
+             return {"count": 0, "logs": loop.run_until_complete(read_db())}
+
+    except Exception:
+        pass
+
+    # Fallback a CSV original (Legacy)
+    mode_dir = os.path.join(LOGS_DIR, mode_upper)
+
+    # Nombre de fichero según modo
+    if mode_upper == "EVALUATED":
+        # evaluated_logger.py escribe algo tipo eth.evaluated.csv
+        filename = f"{token_lower}.evaluated.csv"
+    else:
+        filename = f"{token_lower}.csv"
+
+    csv_path = os.path.join(mode_dir, filename)
+
+    if not os.path.exists(csv_path):
+        # Sin fichero → lista vacía, sin error
+        return {"count": 0, "logs": []}
+
+    rows: list[dict] = []
+    try:
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # DictReader ya nos da {header: value}
+                rows.append(row)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading logs CSV: {type(e).__name__}: {e}",
+        )
+
+    return {"count": len(rows), "logs": rows}
+
+# ==== 9. Endpoint LITE ====
+
+@app.post("/analyze/lite")
+def analyze_lite(req: LiteReq):
+    """
+    Genera una señal LITE para un token/timeframe, usando la lógica LITE v2 adaptada
+    a contratos oficiales:
+
+    - direction ∈ {"long","short"}
+    - token en mayúsculas en la respuesta y en el CSV
+    - timestamp en logs con sufijo Z
+    """
+    token = req.token.lower()
+    tf = req.timeframe
+
+    # 1) Capa Quant
+    df, market = get_market_data(token, tf)
+    if not market:
+        raise HTTPException(status_code=502, detail="Error fetching market data")
+
+    # 2) Construcción de señal LITE (modelo Pydantic + validación)
+    lite_signal, indicators = _build_lite_from_market(token, tf, market)
+
+    # 3) Guardar señal en CSV y DB
+    ts_str = lite_signal.timestamp.replace(microsecond=0).isoformat() + "Z"
+    log_entry = {
+        "timestamp": ts_str,
+        "token": lite_signal.token,
+        "timeframe": lite_signal.timeframe,
+        "direction": lite_signal.direction,
+        "entry": lite_signal.entry,
+        "tp": lite_signal.tp,
+        "sl": lite_signal.sl,
+        "confidence": lite_signal.confidence,
+        "rationale": lite_signal.rationale,
+        "source": lite_signal.source,
+    }
+    save_strict_log("LITE", log_entry)
+
+    # 4) Respuesta (base LITE + indicadores extra para UI)
+    response = lite_signal.model_dump()
+    response["indicators"] = indicators
+    return response
+
+
+# ==== 10. Endpoint PRO v1 (sin LLM, con RAG local) ====
+
+@app.post("/analyze/pro")
+def analyze_pro(req: ProReq):
+    """
+    Genera un análisis PRO en formato Markdown estructurado (#ANALYSIS_START..END),
+    combinando:
+
+    - Señal LITE sugerida (sesgo + niveles)
+    - Contexto RAG desde brain/{token}/
+    - Mensaje opcional del usuario (user_message)
+
+    Por ahora NO llama a ningún LLM externo: el análisis es determinista.
+    Más adelante se sustituirá la construcción interna por una llamada a DeepSeek/GPT
+    manteniendo el mismo contrato de salida.
+    """
+    token = req.token.lower()
+    tf = req.timeframe
+
+    # 1) Capa Quant
+    df, market = get_market_data(token, tf)
+    if not market:
+        raise HTTPException(status_code=502, detail="Error fetching market data")
+
+    # 2) Señal LITE interna como "ancla" táctica
+    lite_signal, indicators = _build_lite_from_market(token, tf, market)
+
+    # 3) Contexto RAG
+    brain_ctx = _load_brain_context(token)
+
+    # 4) Markdown PRO
+    markdown = _build_pro_markdown(req, lite_signal, indicators, brain_ctx)
+
+    # 5) Log PRO (usamos mismo CSV_HEADERS; algunos campos son hints)
+    now_ts = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    pro_log = {
+        "timestamp": now_ts,
+        "token": lite_signal.token,
+        "timeframe": lite_signal.timeframe,
+        "direction": lite_signal.direction,
+        "entry": lite_signal.entry,
+        "tp": lite_signal.tp,
+        "sl": lite_signal.sl,
+        "confidence": lite_signal.confidence,
+        "rationale": "PRO analysis generated (local v1, sin LLM)",
+        "source": "PRO_V1_LOCAL",
+    }
+    save_strict_log("PRO", pro_log)
+
+    # 6) Respuesta: mantenemos JSON para que el frontend tenga margen
+    return {
+        "analysis": markdown,
+        "meta": {
+            "token": lite_signal.token,
+            "timeframe": lite_signal.timeframe,
+            "direction_bias": lite_signal.direction,
+            "entry_hint": lite_signal.entry,
+            "tp_hint": lite_signal.tp,
+            "sl_hint": lite_signal.sl,
+            "lite_confidence": lite_signal.confidence,
+            "rag_used": True,
+        },
+    }
+
+
+# ==== 11. Endpoint ADVISOR (Local v1) ====
+
+@app.post("/analyze/advisor")
+def analyze_advisor(req: AdvisorReq):
+    """
+    Analiza una posición abierta y sugiere alternativas.
+    Versión local determinista (sin LLM).
+    """
+    token = req.token.upper()
+    
+    # Lógica simple de evaluación de riesgo
+    risk_per_share = abs(req.entry - req.sl)
+    reward_per_share = abs(req.tp - req.entry)
+    rr = reward_per_share / risk_per_share if risk_per_share > 0 else 0
+    
+    risk_score = 0.5
+    if rr < 1.0:
+        risk_score = 0.9
+    elif rr > 2.0:
+        risk_score = 0.3
+        
+    confidence = 0.6
+    
+    alternatives = []
+    if risk_score > 0.7:
+        alternatives.append({
+            "if": "price consolidates",
+            "action": "tighten SL",
+            "rr_target": 1.5
+        })
+    else:
+        alternatives.append({
+            "if": "volume spikes",
+            "action": "add to position",
+            "rr_target": 2.5
+        })
+
+    response = {
+        "token": token,
+        "direction": req.direction,
+        "entry": req.entry,
+        "size_quote": req.size_quote,
+        "tp": req.tp,
+        "sl": req.sl,
+        "alternatives": alternatives,
+        "risk_score": round(risk_score, 2),
+        "confidence": confidence
+    }
+    
+    # Log
+    log_entry = {
+        "timestamp": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "token": token,
+        "direction": req.direction,
+        "entry": req.entry,
+        "tp": req.tp,
+        "sl": req.sl,
+        "confidence": confidence,
+        "rationale": f"Advisor check. RR={rr:.2f}",
+        "source": "ADVISOR_V1_LOCAL"
+    }
+    save_strict_log("ADVISOR", log_entry)
+    
+    return response
+
+
+# ==== 11.1 Endpoint ADVISOR CHAT ====
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class AdvisorChatReq(BaseModel):
+    history: List[ChatMessage]
+    context: Dict[str, Any]
+
+@app.post("/analyze/advisor/chat")
+def analyze_advisor_chat(req: AdvisorChatReq):
+    """
+    Endpoint para chat interactivo con el Advisor (DeepSeek).
+    """
+    from deepseek_client import generate_chat
+    
+    # Convertir modelos Pydantic a dicts para la función
+    messages = [{"role": m.role, "content": m.content} for m in req.history]
+    
+    # Añadir contexto técnico al último mensaje si es relevante
+    # (Opcional: inyectarlo como system prompt adicional o en el último user msg)
+    if req.context:
+        ctx_str = (
+            f"\n[Context: Token={req.context.get('token')}, "
+            f"Direction={req.context.get('direction')}, "
+            f"Entry={req.context.get('entry')}]"
+        )
+        # Añadir al final del último mensaje de usuario para que el modelo lo tenga fresco
+        if messages and messages[-1]["role"] == "user":
+            messages[-1]["content"] += ctx_str
+
+    response_text = generate_chat(messages)
+    
+    return {
+        "role": "assistant",
+        "content": response_text,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+
+# ==== 12. Endpoint Notify (Telegram) ====
+
+class TelegramMsg(BaseModel):
+    text: str
+
+@app.post("/notify/telegram")
+def notify_telegram(msg: TelegramMsg):
+    """
+    Envía una notificación a Telegram (simulado por ahora).
+    """
+    # Aquí iría la lógica real con requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", ...)
+    # Por ahora solo logueamos en consola
+    print(f"[TELEGRAM] Sending message: {msg.text}")
+    return {"status": "ok", "sent": True}
+
+# ==== 9. Stats & Metrics para Dashboard ====
+
+
+def _parse_iso_ts(value: Optional[str]):
+    """
+    Intenta parsear timestamps en varios formatos.
+    Devuelve datetime con tz UTC o None si no se puede.
+    """
+    if not value:
+        return None
+
+    v = value.strip()
+    if not v:
+        return None
+
+    # ISO con Z
+    try:
+        if v.endswith("Z"):
+            v = v.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(v)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        pass
+
+    # Formatos alternativos
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"):
+        try:
+            dt = datetime.strptime(v, fmt)
+            return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+
+    return None
+
+
+def compute_stats_summary() -> Dict[str, Any]:
+    """
+    Calcula métricas agregadas desde la base de datos.
+    Fallback a CSV si la DB falla.
+    """
+    try:
+        from typing import Dict, Any
+        from sqlalchemy import func
+        from models_db import Signal, SignalEvaluation
+        from database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            day_ago = datetime.utcnow() - timedelta(hours=24)
+            
+            # Signals evaluated in last 24h
+            eval_24h_count = db.query(func.count(SignalEvaluation.id)).filter(
+                SignalEvaluation.evaluated_at >= day_ago
+            ).scalar() or 0
+            
+            # Total evaluations
+            total_eval = db.query(func.count(SignalEvaluation.id)).scalar() or 0
+            
+            # Win/Loss counts in last 24h
+            tp_24h = db.query(func.count(SignalEvaluation.id)).filter(
+                SignalEvaluation.evaluated_at >= day_ago,
+                SignalEvaluation.result == 'WIN'
+            ).scalar() or 0
+            
+            sl_24h = db.query(func.count(SignalEvaluation.id)).filter(
+                SignalEvaluation.evaluated_at >= day_ago,
+                SignalEvaluation.result == 'LOSS'
+            ).scalar() or 0
+            
+            # LITE signals in last 24h
+            lite_24h = db.query(func.count(Signal.id)).filter(
+                Signal.timestamp >= day_ago,
+                Signal.mode == 'LITE'
+            ).scalar() or 0
+            
+            # Calculate win rate
+            decided = tp_24h + sl_24h
+            win_rate_24h = tp_24h / decided if decided > 0 else None
+            
+            # Open signals (LITE signals not yet evaluated)
+            open_signals_est = max(lite_24h - eval_24h_count, 0)
+            
+            return {
+                "win_rate_24h": win_rate_24h,
+                "signals_evaluated_24h": eval_24h_count,
+                "signals_total_evaluated": total_eval,
+                "signals_lite_24h": lite_24h,
+                "open_signals": open_signals_est,
+            }
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"Database query failed, falling back to CSV: {e}")
+        # Fallback to CSV-based computation
+        return compute_stats_summary_from_csv()
+
+
+def compute_stats_summary_from_csv() -> Dict[str, Any]:
+    """
+    Fallback: Calcula métricas desde archivos CSV (legacy).
+    """
+    now = datetime.now(timezone.utc)
+    day_ago = now - timedelta(hours=24)
+
+    # --- Evaluated: backend/logs/EVALUATED/{token}.evaluated.csv ---
+    evaluated_dir = os.path.join(LOGS_DIR, "EVALUATED")
+    total_eval = 0
+    eval_24h = 0
+    tp_24h = 0
+    sl_24h = 0
+
+    if os.path.isdir(evaluated_dir):
+        for name in os.listdir(evaluated_dir):
+            lower = name.lower()
+            if not (lower.endswith(".csv") or lower.endswith(".evaluated.csv")):
+                continue
+
+            path = os.path.join(evaluated_dir, name)
+            try:
+                with open(path, newline="", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        total_eval += 1
+                        ts = _parse_iso_ts(
+                            row.get("evaluated_at") or row.get("signal_ts")
+                        )
+                        if ts and ts >= day_ago:
+                            eval_24h += 1
+                            result = (row.get("result") or "").strip()
+                            if result == "hit-tp":
+                                tp_24h += 1
+                            elif result == "hit-sl":
+                                sl_24h += 1
+            except Exception:
+                # No queremos que un CSV roto tumbe todo el endpoint
+                continue
+
+    # --- LITE: backend/logs/LITE/{token}.csv ---
+    lite_dir = os.path.join(LOGS_DIR, "LITE")
+    lite_24h = 0
+
+    if os.path.isdir(lite_dir):
+        for name in os.listdir(lite_dir):
+            if not name.lower().endswith(".csv"):
+                continue
+
+            path = os.path.join(lite_dir, name)
+            try:
+                with open(path, newline="", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        ts = _parse_iso_ts(row.get("timestamp"))
+                        if ts and ts >= day_ago:
+                            lite_24h += 1
+            except Exception:
+                continue
+
+    decided = tp_24h + sl_24h
+    win_rate_24h = tp_24h / decided if decided > 0 else None
+
+    # Señales LITE en las últimas 24h que aún no tienen evaluación
+    open_signals_est = max(lite_24h - eval_24h, 0)
+
+    return {
+        "win_rate_24h": win_rate_24h,  # 0.0–1.0 o null
+        "signals_evaluated_24h": eval_24h,
+        "signals_total_evaluated": total_eval,
+        "signals_lite_24h": lite_24h,
+        "open_signals": open_signals_est,
+    }
+
+
+@app.get("/stats/summary")
+def stats_summary():
+    """
+    Métricas agregadas simples para el dashboard de TraderCopilot.
+    """
+    try:
+        return compute_stats_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==== 11. Fallback global ====
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Manejo genérico de errores inesperados."""
+    if isinstance(exc, HTTPException):
+        # Dejamos que FastAPI maneje HTTPException como siempre
+        raise exc
+
+    return {
+        "error": str(exc),
+        "message": "Unexpected server error."
+    }

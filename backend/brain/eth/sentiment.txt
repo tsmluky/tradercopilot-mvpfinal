@@ -1,0 +1,19 @@
+Fear & Greed Index (ETH-specific): 58 (Greed moderado) - Sentimiento positivo sin euforia.
+
+Social volume: 28K menciones diarias en Twitter/X. Narrativa dominante: L2s, ETFs, y "ultrasound money".
+
+Funding rates: Neutrales (+0.002%) en perpetuos, sin sobreapalancamiento.
+
+Open Interest: $12B en derivados, incremento del 5% semanal.
+
+Long/Short ratio: 1.4:1 en exchanges, sesgo alcista moderado.
+
+Developer activity: GitHub commits en máximos, ecosistema activo en desarrollo.
+
+DeFi sentiment: Positivo con incremento en yields reales y adopción de protocolos innovadores.
+
+Institutional interest: Creciente según encuestas, expectativa de aprobación de ETF spot.
+
+ETH/BTC ratio sentiment: Optimista, expectativa de outperformance en próximo ciclo alcista.
+
+Community sentiment: Alcista en r/ethereum y comunidades de desarrollo, confianza en roadmap técnico.

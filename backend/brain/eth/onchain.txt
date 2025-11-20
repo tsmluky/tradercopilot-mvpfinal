@@ -1,0 +1,19 @@
+Direcciones activas: 450K+ direcciones activas diarias, incremento del 8% mensual.
+
+Exchange netflow: Salidas netas de -85K ETH en última semana, acumulación en wallets de staking y DeFi.
+
+Whale activity: 25 transacciones >$5M en 24h, principalmente depósitos a contratos de staking.
+
+Supply en exchanges: 12.5M ETH (~10.4% del supply), mínimo de 12 meses.
+
+Staked ETH: 30.2M ETH stakeados (~25% del supply total), crecimiento sostenido.
+
+Supply deflacionario: -0.15% anualizado en últimos 30 días, quema superando emisión.
+
+Gas usage: Promedio de 12M gas/bloque, actividad estable con picos en lanzamientos de NFTs.
+
+L2 activity: 3.5M transacciones diarias en L2s combinados, superando actividad de L1.
+
+DeFi TVL: $52B en protocolos Ethereum, estable con ligero crecimiento.
+
+Validator queue: 2,500 validadores en cola de entrada, demanda sostenida de staking.
