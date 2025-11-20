@@ -1,0 +1,32 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+.venv/
+venv/
+.env
+*.sqlite3
+
+# === Node / Frontend ===
+node_modules/
+dist/
+build/
+.next/
+.npm/
+.pnp.*
+coverage/
+*.local
+
+# === Editor / SO ===
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# === Otros ===
+*.zip
+*.bak
+logs/
