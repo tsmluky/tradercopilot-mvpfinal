@@ -596,6 +596,9 @@ async def get_logs(mode: str, token: str):
     if mode_upper not in allowed_modes:
         raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
 
+    # Lista maestra de logs
+    all_logs = []
+
     # 1. Intentar leer de DB (PostgreSQL/SQLite)
     try:
         from database import AsyncSessionLocal
@@ -608,16 +611,14 @@ async def get_logs(mode: str, token: str):
             if token_lower != "all":
                 query = query.where(Signal.token == token.upper())
             
-            # Ordenar por fecha descendente y limitar
+            # Traemos hasta 100 de la DB
             query = query.order_by(desc(Signal.timestamp)).limit(100)
             
             result = await session.execute(query)
             signals = result.scalars().all()
             
             if signals:
-                return {
-                    "count": len(signals),
-                    "logs": [
+                db_logs = [
                     {
                         "timestamp": s.timestamp.isoformat() + "Z" if s.timestamp.tzinfo is None else s.timestamp.isoformat(),
                         "token": s.token,
@@ -633,69 +634,63 @@ async def get_logs(mode: str, token: str):
                     }
                     for s in signals
                 ]
-                }
+                all_logs.extend(db_logs)
+                print(f"[LOGS] Loaded {len(db_logs)} logs from DB")
+
     except Exception as e:
-        print(f"[LOGS] Error reading from DB: {e}. Falling back to CSV.")
-        # Si falla DB (o está vacía), intentamos CSV
+        print(f"[LOGS] Error reading from DB: {e}. Continuing with CSVs.")
         pass
 
-    # 2. Fallback a CSV (Legacy)
+    # 2. Leer de CSV (Legacy) y combinar
     mode_dir = os.path.join(LOGS_DIR, mode_upper)
-    if not os.path.exists(mode_dir):
-        return {"count": 0, "logs": []}
-
-    rows: list[dict] = []
-
-    # Si token es 'all', leemos TODOS los CSVs del directorio
-    if token_lower == "all":
-        try:
-            for filename in os.listdir(mode_dir):
-                if filename.endswith(".csv"):
-                    filepath = os.path.join(mode_dir, filename)
-                    with open(filepath, newline="", encoding="utf-8") as f:
+    if os.path.exists(mode_dir):
+        csv_logs = []
+        # Si token es 'all', leemos TODOS los CSVs
+        if token_lower == "all":
+            try:
+                for filename in os.listdir(mode_dir):
+                    if filename.endswith(".csv"):
+                        filepath = os.path.join(mode_dir, filename)
+                        with open(filepath, newline="", encoding="utf-8") as f:
+                            reader = csv.DictReader(f)
+                            for row in reader:
+                                if "token" not in row:
+                                    row["token"] = filename.replace(".csv", "").replace(".evaluated", "").upper()
+                                csv_logs.append(row)
+            except Exception as e:
+                print(f"[LOGS] Error reading CSVs for ALL: {e}")
+        else:
+            # Token específico
+            filename = f"{token_lower}.evaluated.csv" if mode_upper == "EVALUATED" else f"{token_lower}.csv"
+            csv_path = os.path.join(mode_dir, filename)
+            if os.path.exists(csv_path):
+                try:
+                    with open(csv_path, newline="", encoding="utf-8") as f:
                         reader = csv.DictReader(f)
                         for row in reader:
-                            # Añadir token al row si no está (aunque debería estar)
-                            if "token" not in row:
-                                row["token"] = filename.replace(".csv", "").replace(".evaluated", "").upper()
-                            rows.append(row)
-            
-            # Ordenar por timestamp (asumiendo formato ISO o similar string sortable)
-            # Si no es sortable, se mostrará desordenado, pero al menos se muestra.
-            rows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-            # Limitar a 100
-            rows = rows[:100]
-            
-        except Exception as e:
-            print(f"[LOGS] Error reading CSVs for ALL: {e}")
-            return {"count": 0, "logs": []}
-            
-    else:
-        # Token específico
-        if mode_upper == "EVALUATED":
-            filename = f"{token_lower}.evaluated.csv"
-        else:
-            filename = f"{token_lower}.csv"
+                            csv_logs.append(row)
+                except Exception as e:
+                    print(f"[LOGS] Error reading CSV {filename}: {e}")
 
-        csv_path = os.path.join(mode_dir, filename)
+        if csv_logs:
+            print(f"[LOGS] Loaded {len(csv_logs)} logs from CSV")
+            all_logs.extend(csv_logs)
 
-        if not os.path.exists(csv_path):
-            return {"count": 0, "logs": []}
-
+    # 3. Ordenar todo por timestamp descendente y limitar
+    # Normalizamos timestamps para poder ordenar
+    def parse_ts(log):
+        ts = log.get("timestamp", "")
         try:
-            with open(csv_path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    rows.append(row)
-            # Invertir para ver recientes primero (si el CSV se escribe append)
-            rows.reverse()
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error reading logs CSV: {type(e).__name__}: {e}",
-            )
+            return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except:
+            return datetime.min
 
-    return {"count": len(rows), "logs": rows}
+    all_logs.sort(key=parse_ts, reverse=True)
+    
+    # Devolver solo los 100 más recientes
+    final_logs = all_logs[:100]
+
+    return {"count": len(final_logs), "logs": final_logs}
 
 # ==== 9. Endpoint LITE ====
 
