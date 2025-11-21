@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { SignalLite } from '../types';
 import { Maximize2 } from 'lucide-react';
+import { API_BASE_URL } from '../constants';
 
 interface PriceChartProps {
   token: string;
@@ -32,8 +33,9 @@ export const PriceChart: React.FC<PriceChartProps> = ({
     const fetchData = async () => {
       try {
         setLoading(true);
+        // Usar API_BASE_URL importada en lugar de hardcode
         const response = await fetch(
-          `http://127.0.0.1:8010/market/ohlcv/${token}?timeframe=${timeframe}&limit=50`
+          `${API_BASE_URL}/market/ohlcv/${token}?timeframe=${timeframe}&limit=50`
         );
 
         if (!response.ok) throw new Error('Failed to fetch');
