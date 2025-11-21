@@ -147,11 +147,12 @@ def save_strict_log(mode: str, data: Dict[str, Any]) -> None:
         try:
             db.add(signal)
             db.commit()
-            print(f"[DB] ✅ Señal guardada: {mode} - {data.get('token')} - {ts_str}")
+            print(f"[DB] ✅ Señal guardada en DB: {mode} - {signal.token} - {ts_str}")
         except Exception as db_err:
-            print(f"[DB] ❌ Error al hacer commit: {db_err}")
+            print(f"[DB] ❌ Error CRÍTICO al guardar en DB: {db_err}")
             db.rollback()
-            raise
+            # No relanzamos para que al menos se guarde en CSV y no rompa el flow
+            # raise 
         finally:
             db.close()
     except Exception as e:
@@ -615,21 +616,21 @@ async def get_logs(mode: str, token: str):
                 return {
                     "count": len(signals),
                     "logs": [
-                        {
-                            "timestamp": s.timestamp.isoformat(),
-                            "token": s.token,
-                            "timeframe": s.timeframe,
-                            "direction": s.direction,
-                            "entry": s.entry,
-                            "tp": s.tp,
-                            "sl": s.sl,
-                            "confidence": s.confidence,
-                            "rationale": s.rationale,
-                            "source": s.source,
-                            "result": "OPEN" 
-                        }
-                        for s in signals
-                    ]
+                    {
+                        "timestamp": s.timestamp.isoformat() + "Z" if s.timestamp.tzinfo is None else s.timestamp.isoformat(),
+                        "token": s.token,
+                        "timeframe": s.timeframe,
+                        "direction": s.direction,
+                        "entry": s.entry,
+                        "tp": s.tp,
+                        "sl": s.sl,
+                        "confidence": s.confidence,
+                        "rationale": s.rationale,
+                        "source": s.source,
+                        "result": "OPEN" 
+                    }
+                    for s in signals
+                ]
                 }
     except Exception as e:
         print(f"[LOGS] Error reading from DB: {e}. Falling back to CSV.")
