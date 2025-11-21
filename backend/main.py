@@ -589,6 +589,8 @@ async def get_logs(mode: str, token: str):
     """
     mode_upper = mode.upper()
     token_lower = token.lower()
+    
+    print(f"[LOGS] Request received: mode={mode_upper}, token={token_lower}")
 
     allowed_modes = {"LITE", "PRO", "ADVISOR", "EVALUATED"}
     if mode_upper not in allowed_modes:
