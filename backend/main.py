@@ -27,6 +27,10 @@ app = FastAPI(
     description="API principal para generación de señales y registro de logs."
 )
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "db": "connected"}
+
 # === CORS Configuration ===
 # En desarrollo: localhost
 # En producción (Railway): permitir todos los orígenes o configurar específicamente
