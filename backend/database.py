@@ -35,6 +35,18 @@ else:
     DATABASE_URL_SYNC = "sqlite:///./tradercopilot.db"
     print(f"[DB] Using SQLite (Development)")
 
+# Ensure DB directory exists for SQLite
+if "sqlite" in DATABASE_URL:
+    try:
+        # Extract path from URL (e.g. sqlite+aiosqlite:///./backend/data/db.sqlite -> ./backend/data)
+        db_path = DATABASE_URL.split(":///")[-1]
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"[DB] Created missing directory: {db_dir}")
+    except Exception as e:
+        print(f"[DB WARNING] Could not ensure DB directory exists: {e}")
+
 # == ASYNC ==
 engine = create_async_engine(
     DATABASE_URL,
