@@ -73,11 +73,24 @@ class LiteIn(BaseModel):
 async def _call_analyze(payload: dict):
     # Preferimos llamada interna al método si existe; si no, fallback HTTP local
     try:
-        from ..main import AnalysisRequest, analyze_token
-
-        req = AnalysisRequest(**payload)
-        return await analyze_token(req)
-    except Exception:
+        # Truco para importar main.py desde routers/ sin ser paquete
+        import sys
+        import os
+        
+        # Añadir directorio padre (backend) al path si no está
+        current = os.path.dirname(os.path.abspath(__file__))
+        parent = os.path.dirname(current)
+        if parent not in sys.path:
+            sys.path.append(parent)
+            
+        import main
+        
+        # Reconstruir el objeto request usando la clase definida en main
+        # Nota: main.AnalysisRequest debe estar disponible
+        req = main.AnalysisRequest(**payload)
+        return await main.analyze_token(req)
+    except Exception as e:
+        print(f"[COMPAT ERROR] Internal import failed: {e}")
         import httpx
         
         port = os.getenv("PORT", "8010")
