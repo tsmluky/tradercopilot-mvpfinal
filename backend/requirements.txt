@@ -4,7 +4,7 @@ python-dotenv
 requests
 ccxt
 pandas
-ta
+git+https://github.com/twopirllc/pandas-ta.git@development
 pydantic
 sqlalchemy
 aiosqlite
