@@ -4,7 +4,12 @@ from typing import Any, Dict
 
 import requests
 
-DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com/chat/completions")
+raw_url = os.getenv("DEEPSEEK_API_URL", "")
+if not raw_url.startswith("http"):
+    DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+else:
+    DEEPSEEK_API_URL = raw_url
+
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 

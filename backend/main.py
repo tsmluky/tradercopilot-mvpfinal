@@ -62,6 +62,16 @@ from models_db import Signal, SignalEvaluation, User # Import models to register
 
 @app.on_event("startup")
 async def startup():
+    # Diagnóstico de DB
+    db_url = os.getenv("DATABASE_URL", "")
+    if "sqlite" in db_url or not db_url:
+        print("⚠️  [WARNING] Using SQLite (Ephemeral). Data WILL BE LOST on redeploy.")
+        print("👉  To fix: Connect a PostgreSQL service in Railway and set DATABASE_URL.")
+    else:
+        print("✅  [INFO] Using PostgreSQL (Persistent).")
+        
+    print(f"[DB] Connection URL: {db_url.split('@')[-1] if '@' in db_url else 'sqlite://...'}")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

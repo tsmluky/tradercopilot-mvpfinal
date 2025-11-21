@@ -74,9 +74,70 @@ def get_ohlcv_data(
         return ohlcv
         
     except Exception as e:
-        print(f"Error fetching OHLCV data: {e}")
-        # Fallback a datos mock si falla la API
-        return generate_mock_ohlcv(symbol, limit)
+        print(f"[Binance Error] {e}. Trying KuCoin fallback...")
+        try:
+            return fetch_from_kucoin(symbol, timeframe, limit)
+        except Exception as k_e:
+            print(f"[KuCoin Error] {k_e}. Using Mock data.")
+            # Fallback a datos mock si falla la API
+            return generate_mock_ohlcv(symbol, limit)
+
+def fetch_from_kucoin(symbol: str, timeframe: str, limit: int) -> List[Dict[str, Any]]:
+    """
+    Intenta obtener datos de KuCoin API.
+    """
+    # Mapeo de símbolos KuCoin (BTC-USDT)
+    symbol_map = {
+        'btc': 'BTC-USDT',
+        'eth': 'ETH-USDT',
+        'sol': 'SOL-USDT',
+    }
+    kucoin_symbol = symbol_map.get(symbol.lower(), f"{symbol.upper()}-USDT")
+    
+    # Mapeo timeframes KuCoin
+    tf_map = {
+        '1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min',
+        '1h': '1hour', '4h': '4hour', '1d': '1day'
+    }
+    type_tf = tf_map.get(timeframe, '30min')
+    
+    url = "https://api.kucoin.com/api/v1/market/candles"
+    params = {
+        'symbol': kucoin_symbol,
+        'type': type_tf
+    }
+    
+    # KuCoin no tiene limit param en klines estándar, devuelve 100 por defecto o por rango.
+    # Simplificamos pidiendo lo que den.
+    
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    
+    if data.get('code') != '200000':
+        raise Exception(f"KuCoin API Error: {data.get('msg')}")
+        
+    candles = data.get('data', [])
+    # KuCoin devuelve: [time, open, close, high, low, volume, turnover]
+    # Nota: orden distinto a Binance
+    
+    ohlcv = []
+    for c in candles:
+        # c[0] es string seconds
+        ts = int(c[0]) * 1000
+        ohlcv.append({
+            'timestamp': ts,
+            'time': datetime.fromtimestamp(ts / 1000).strftime('%H:%M'),
+            'open': float(c[1]),
+            'close': float(c[2]),
+            'high': float(c[3]),
+            'low': float(c[4]),
+            'volume': float(c[5]),
+        })
+    
+    # KuCoin devuelve del más reciente al más antiguo, invertimos
+    ohlcv.reverse()
+    return ohlcv[-limit:]
 
 
 def generate_mock_ohlcv(symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
