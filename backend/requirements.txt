@@ -4,6 +4,7 @@ python-dotenv
 requests
 ccxt
 pandas
+pandas_ta
 ta
 pydantic
 sqlalchemy
