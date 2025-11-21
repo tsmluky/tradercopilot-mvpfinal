@@ -7,14 +7,19 @@ import os
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.strip()
+    print(f"[DB DEBUG] Original URL starts with: {DATABASE_URL[:15]}...")
+    
     # Production (Railway) - PostgreSQL
     # Railway provides postgres:// but SQLAlchemy needs postgresql://
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
     # For async, use postgresql+asyncpg://
-    if not DATABASE_URL.startswith("postgresql+asyncpg://"):
+    if "postgresql://" in DATABASE_URL and "+asyncpg" not in DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    print(f"[DB DEBUG] Final Async URL starts with: {DATABASE_URL[:25]}...")
     
     DATABASE_URL_SYNC = DATABASE_URL.replace("+asyncpg", "")
     print(f"[DB] Using PostgreSQL (Production)")
