@@ -1,6 +1,9 @@
-export const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_BASE_URL ??
-  "https://zesty-surprise-production-1f0f.up.railway.app";
+// FORZANDO URL DE PRODUCCIÓN PARA DEBUG
+export const API_BASE_URL: string = "https://zesty-surprise-production-1f0f.up.railway.app";
+
+// export const API_BASE_URL: string =
+//   (import.meta as any).env?.VITE_API_BASE_URL ??
+//   "https://zesty-surprise-production-1f0f.up.railway.app";
 
 // === Tokens soportados ===
 
