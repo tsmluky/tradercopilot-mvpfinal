@@ -79,8 +79,9 @@ async def _call_analyze(payload: dict):
         return await analyze_token(req)
     except Exception:
         import httpx
-
-        url = os.getenv("SELF_ANALYZE_URL", "http://127.0.0.1:8010/analyze")
+        
+        port = os.getenv("PORT", "8010")
+        url = os.getenv("SELF_ANALYZE_URL", f"http://127.0.0.1:{port}/analyze")
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(url, json=payload)
             if r.status_code >= 400:
