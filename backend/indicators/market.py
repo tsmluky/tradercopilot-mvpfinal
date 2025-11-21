@@ -1,6 +1,6 @@
 import ccxt
 import pandas as pd
-import pandas_ta as ta
+import ta
 
 # Configuración básica
 EXCHANGE_ID = 'binance' 
@@ -24,16 +24,28 @@ def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         
-        # Cálculo de Indicadores (Quant Layer)
-        df.ta.ema(length=21, append=True)
-        df.ta.ema(length=50, append=True)
-        df.ta.rsi(length=14, append=True)
-        df.ta.macd(append=True) 
-        df.ta.atr(length=14, append=True)
+        # Cálculo de Indicadores (Quant Layer) usando librería 'ta'
+        # EMA
+        df['EMA_21'] = ta.trend.ema_indicator(df['close'], window=21)
+        df['EMA_50'] = ta.trend.ema_indicator(df['close'], window=50)
+        
+        # RSI
+        df['RSI_14'] = ta.momentum.rsi(df['close'], window=14)
+        
+        # MACD
+        macd = ta.trend.MACD(df['close'])
+        df['MACD_12_26_9'] = macd.macd()
+        df['MACDh_12_26_9'] = macd.macd_diff()
+        
+        # ATR
+        df['ATRr_14'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14)
         
         # Limpieza
         df.dropna(inplace=True)
         
+        if df.empty:
+            return None, None
+
         # Extraer última vela
         last = df.iloc[-1]
         prev = df.iloc[-2]
