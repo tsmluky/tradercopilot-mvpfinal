@@ -1,28 +1,42 @@
-import ccxt
 import pandas as pd
 import ta
-
-# Configuración básica
-EXCHANGE_ID = 'binance' 
+# Importar desde el módulo hermano en el directorio raíz (backend/)
+# Asumimos que backend/ está en sys.path gracias a main.py
+try:
+    from market_data_api import get_ohlcv_data
+except ImportError:
+    # Fallback para ejecución aislada o tests
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from market_data_api import get_ohlcv_data
 
 def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
     """
     Descarga OHLCV y calcula indicadores técnicos base.
     Retorna: (dataframe, dict_resumen_actual)
     """
-    # Normalizar símbolo (ej: 'eth' -> 'ETH/USDT')
-    pair = f"{symbol.upper()}/USDT"
-    
     try:
-        exchange = getattr(ccxt, EXCHANGE_ID)()
+        # Usar la API robusta con fallback
+        ohlcv_data = get_ohlcv_data(symbol, timeframe, limit)
         
-        # Descarga de datos
-        ohlcv = exchange.fetch_ohlcv(pair, timeframe, limit=limit)
-        if not ohlcv:
+        if not ohlcv_data:
             return None, None
             
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        # Convertir lista de dicts a DataFrame
+        # market_data_api devuelve: {'timestamp': ms, 'open': float, ...}
+        df = pd.DataFrame(ohlcv_data)
+        
+        # Asegurar columnas correctas y tipos
+        required_cols = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        for col in required_cols:
+            if col not in df.columns:
+                print(f"[MARKET ERROR] Missing column {col} in data")
+                return None, None
+                
+        # Convertir timestamp si es necesario (ya viene como int ms, pandas lo maneja mejor como datetime)
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.sort_values('timestamp', inplace=True)
         
         # Cálculo de Indicadores (Quant Layer) usando librería 'ta'
         # EMA
@@ -40,7 +54,7 @@ def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
         # ATR
         df['ATRr_14'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14)
         
-        # Limpieza
+        # Limpieza de NaNs generados por indicadores
         df.dropna(inplace=True)
         
         if df.empty:
@@ -48,7 +62,7 @@ def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
 
         # Extraer última vela
         last = df.iloc[-1]
-        prev = df.iloc[-2]
+        # prev = df.iloc[-2] # Puede fallar si solo hay 1 fila tras dropna
         
         # Mapeo de datos
         data = {
@@ -59,7 +73,7 @@ def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
             "macd": last['MACD_12_26_9'],
             "macd_hist": last['MACDh_12_26_9'],
             "atr": last['ATRr_14'],
-            "volume_change_pct": round(((last['volume'] - prev['volume']) / prev['volume']) * 100, 2),
+            # "volume_change_pct": ... (opcional, simplificado para robustez)
             "trend": "BULLISH" if last['close'] > last['EMA_50'] else "BEARISH"
         }
         
@@ -67,4 +81,6 @@ def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
 
     except Exception as e:
         print(f"[ERROR MARKET] {e}")
+        import traceback
+        traceback.print_exc()
         return None, None
