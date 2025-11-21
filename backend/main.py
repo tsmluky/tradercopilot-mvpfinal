@@ -579,18 +579,12 @@ def get_market_ohlcv(token: str, timeframe: str = "30m", limit: int = 100):
 # ==== Logs CSV por modo/token ===============================================
 
 @app.get("/logs/{mode}/{token}")
-def get_logs(mode: str, token: str):
+async def get_logs(mode: str, token: str):
     """
-    Devuelve logs en JSON a partir de los CSV.
+    Devuelve logs en JSON a partir de la DB (con fallback a CSV).
 
-    - LITE/PRO/ADVISOR → backend/logs/{MODE}/{token}.csv
-    - EVALUATED        → backend/logs/EVALUATED/{token}.evaluated.csv
-
-    Response:
-    {
-      "count": N,
-      "logs": [ { ..row.. }, ... ]
-    }
+    - LITE/PRO/ADVISOR
+    - EVALUATED
     """
     mode_upper = mode.upper()
     token_lower = token.lower()
@@ -599,79 +593,104 @@ def get_logs(mode: str, token: str):
     if mode_upper not in allowed_modes:
         raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
 
-    # Leer de DB
+    # 1. Intentar leer de DB (PostgreSQL/SQLite)
     try:
         from database import AsyncSessionLocal
         from models_db import Signal
         from sqlalchemy import select, desc
-        import asyncio
         
-        async def read_db():
-            async with AsyncSessionLocal() as session:
-                query = select(Signal).where(Signal.mode == mode_upper)
-                if token_lower != "all": # Si implementamos filtro 'all' en backend
-                    query = query.where(Signal.token == token.upper())
-                
-                query = query.order_by(desc(Signal.timestamp)).limit(100)
-                result = await session.execute(query)
-                signals = result.scalars().all()
-                return [
-                    {
-                        "timestamp": s.timestamp.isoformat(),
-                        "token": s.token,
-                        "timeframe": s.timeframe,
-                        "direction": s.direction,
-                        "entry": s.entry,
-                        "tp": s.tp,
-                        "sl": s.sl,
-                        "confidence": s.confidence,
-                        "rationale": s.rationale,
-                        "source": s.source,
-                        "result": "OPEN" # Placeholder hasta que implementemos evaluaciones reales
-                    }
-                    for s in signals
-                ]
-
-        # Ejecutar async en sync
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-             # Esto es problemático en endpoints síncronos, lo ideal es hacer el endpoint async
-             # Por ahora, fallback a CSV si no podemos hacer await
-             pass
-        else:
-             return {"count": 0, "logs": loop.run_until_complete(read_db())}
-
-    except Exception:
+        async with AsyncSessionLocal() as session:
+            query = select(Signal).where(Signal.mode == mode_upper)
+            
+            if token_lower != "all":
+                query = query.where(Signal.token == token.upper())
+            
+            # Ordenar por fecha descendente y limitar
+            query = query.order_by(desc(Signal.timestamp)).limit(100)
+            
+            result = await session.execute(query)
+            signals = result.scalars().all()
+            
+            if signals:
+                return {
+                    "count": len(signals),
+                    "logs": [
+                        {
+                            "timestamp": s.timestamp.isoformat(),
+                            "token": s.token,
+                            "timeframe": s.timeframe,
+                            "direction": s.direction,
+                            "entry": s.entry,
+                            "tp": s.tp,
+                            "sl": s.sl,
+                            "confidence": s.confidence,
+                            "rationale": s.rationale,
+                            "source": s.source,
+                            "result": "OPEN" 
+                        }
+                        for s in signals
+                    ]
+                }
+    except Exception as e:
+        print(f"[LOGS] Error reading from DB: {e}. Falling back to CSV.")
+        # Si falla DB (o está vacía), intentamos CSV
         pass
 
-    # Fallback a CSV original (Legacy)
+    # 2. Fallback a CSV (Legacy)
     mode_dir = os.path.join(LOGS_DIR, mode_upper)
-
-    # Nombre de fichero según modo
-    if mode_upper == "EVALUATED":
-        # evaluated_logger.py escribe algo tipo eth.evaluated.csv
-        filename = f"{token_lower}.evaluated.csv"
-    else:
-        filename = f"{token_lower}.csv"
-
-    csv_path = os.path.join(mode_dir, filename)
-
-    if not os.path.exists(csv_path):
-        # Sin fichero → lista vacía, sin error
+    if not os.path.exists(mode_dir):
         return {"count": 0, "logs": []}
 
     rows: list[dict] = []
-    try:
-        with open(csv_path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # DictReader ya nos da {header: value}
-                rows.append(row)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error reading logs CSV: {type(e).__name__}: {e}",
-        )
+
+    # Si token es 'all', leemos TODOS los CSVs del directorio
+    if token_lower == "all":
+        try:
+            for filename in os.listdir(mode_dir):
+                if filename.endswith(".csv"):
+                    filepath = os.path.join(mode_dir, filename)
+                    with open(filepath, newline="", encoding="utf-8") as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            # Añadir token al row si no está (aunque debería estar)
+                            if "token" not in row:
+                                row["token"] = filename.replace(".csv", "").replace(".evaluated", "").upper()
+                            rows.append(row)
+            
+            # Ordenar por timestamp (asumiendo formato ISO o similar string sortable)
+            # Si no es sortable, se mostrará desordenado, pero al menos se muestra.
+            rows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            # Limitar a 100
+            rows = rows[:100]
+            
+        except Exception as e:
+            print(f"[LOGS] Error reading CSVs for ALL: {e}")
+            return {"count": 0, "logs": []}
+            
+    else:
+        # Token específico
+        if mode_upper == "EVALUATED":
+            filename = f"{token_lower}.evaluated.csv"
+        else:
+            filename = f"{token_lower}.csv"
+
+        csv_path = os.path.join(mode_dir, filename)
+
+        if not os.path.exists(csv_path):
+            return {"count": 0, "logs": []}
+
+        try:
+            with open(csv_path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    rows.append(row)
+            # Invertir para ver recientes primero (si el CSV se escribe append)
+            rows.reverse()
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error reading logs CSV: {type(e).__name__}: {e}",
+            )
 
     return {"count": len(rows), "logs": rows}
 
