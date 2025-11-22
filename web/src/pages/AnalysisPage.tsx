@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TOKENS, TIMEFRAMES } from '../constants';
 import { api } from '../services/api';
+import { notificationService } from '../services/notification';
 import { SignalLite, ProResponse, AnalysisMode } from '../types';
 import { SignalCard } from '../components/SignalCard';
 import { ProAnalysisViewer } from '../components/ProAnalysisViewer';
@@ -77,12 +78,15 @@ export const AnalysisPage: React.FC = () => {
       if (mode === AnalysisMode.LITE) {
         const res = await api.analyzeLite(selectedToken, selectedTimeframe);
         setLiteSignal(res);
+        notificationService.notify('Signal Generated', `LITE analysis for ${selectedToken.toUpperCase()} complete.`, 'success');
       } else if (mode === AnalysisMode.PRO) {
         const res = await api.analyzePro(selectedToken, selectedTimeframe, true);
         setProResponse(res);
+        notificationService.notify('Analysis Complete', `PRO analysis for ${selectedToken.toUpperCase()} generated.`, 'success');
       }
     } catch (e) {
       console.error(e);
+      notificationService.notify('Analysis Failed', 'Could not generate signal. Please try again.', 'error');
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import { FileText, Download, RefreshCw, AlertCircle, Trash2 } from 'lucide-react
 import { api } from '../services/api';
 import { AnalysisMode, LogRow } from '../types';
 import { TOKENS } from '../constants';
+import { notificationService } from '../services/notification';
 
 export const LogsPage: React.FC = () => {
   const [mode, setMode] = useState<string>(AnalysisMode.EVALUATED);
@@ -82,6 +83,7 @@ export const LogsPage: React.FC = () => {
   const handleClearLogs = () => {
     if (window.confirm('Are you sure you want to clear all visible logs? This action cannot be undone.')) {
       setLogs([]);
+      notificationService.notify('Logs Cleared', 'All visible logs have been removed from the view.', 'success');
     }
   };
 
