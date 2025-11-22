@@ -1,4 +1,3 @@
-```typescript
 import React, { useEffect, useState } from 'react';
 import { FileText, Download, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
 import { api } from '../services/api';
@@ -15,12 +14,12 @@ export const LogsPage: React.FC = () => {
     setLoading(true);
     try {
       let data: LogRow[] = [];
-      
+
       if (token === 'all') {
         // Fetch logs for all tokens and merge
-        const fetchPromises = TOKENS.map(t => 
+        const fetchPromises = TOKENS.map(t =>
           api.fetchLogs(mode, t.id).catch(err => {
-            console.error(`Failed to fetch logs for ${ t.id }`, err);
+            console.error(`Failed to fetch logs for ${t.id}`, err);
             return [];
           })
         );
@@ -30,7 +29,7 @@ export const LogsPage: React.FC = () => {
         // Fetch for specific token
         data = await api.fetchLogs(mode, token);
       }
-      
+
       setLogs(data);
     } catch (e) {
       console.error('Failed to fetch logs', e);
@@ -49,7 +48,7 @@ export const LogsPage: React.FC = () => {
     const seen = new Set<string>();
     return logs.filter(log => {
       // Create unique key using timestamp, token, direction, and entry
-      const key = `${ log.timestamp || log.signal_ts }_${ log.token }_${ log.direction }_${ log.entry } `;
+      const key = `${log.timestamp || log.signal_ts}_${log.token}_${log.direction}_${log.entry} `;
       if (seen.has(key)) {
         return false;
       }
@@ -198,7 +197,7 @@ export const LogsPage: React.FC = () => {
                       }
 
                       return (
-                        <td key={h} className={`p - 4 ${ colorClass } `}>
+                        <td key={h} className={`p - 4 ${colorClass} `}>
                           {h === 'timestamp' || h === 'evaluated_at' || h === 'signal_ts' ? (
                             <div className="flex items-center gap-2 group cursor-help" title={new Date(strVal).toLocaleString()}>
                               <div className="flex flex-col">
@@ -209,9 +208,9 @@ export const LogsPage: React.FC = () => {
                                     const diff = (now.getTime() - date.getTime()) / 1000;
 
                                     if (diff < 60) return 'Just now';
-                                    if (diff < 3600) return `${ Math.floor(diff / 60) }m ago`;
-                                    if (diff < 86400) return `${ Math.floor(diff / 3600) }h ago`;
-                                    return `${ Math.floor(diff / 86400) }d ago`;
+                                    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                                    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                                    return `${Math.floor(diff / 86400)}d ago`;
                                   })()}
                                 </span>
                                 <span className="text-[10px] text-slate-500 font-mono">
@@ -258,4 +257,3 @@ export const LogsPage: React.FC = () => {
     </div>
   );
 };
-```
