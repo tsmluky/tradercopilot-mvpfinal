@@ -13,7 +13,23 @@ export const LogsPage: React.FC = () => {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const data = await api.fetchLogs(mode, token === 'all' ? 'eth' : token);
+      let data: LogRow[] = [];
+
+      if (token === 'all') {
+        // Fetch logs for all tokens and merge
+        const fetchPromises = TOKENS.map(t =>
+          api.fetchLogs(mode, t.id).catch(err => {
+            console.error(`Failed to fetch logs for ${t.id}`, err);
+            return [];
+          })
+        );
+        const results = await Promise.all(fetchPromises);
+        data = results.flat();
+      } else {
+        // Fetch for specific token
+        data = await api.fetchLogs(mode, token);
+      }
+
       setLogs(data);
     } catch (e) {
       console.error('Failed to fetch logs', e);
