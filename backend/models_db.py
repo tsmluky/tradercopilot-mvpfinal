@@ -44,3 +44,42 @@ class User(Base):
     hashed_password = Column(String)
     role = Column(String, default="user")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StrategyConfig(Base):
+    """
+    Configuración de estrategias 24/7 para el scheduler.
+    
+    Cada registro representa una estrategia que puede ejecutarse
+    automáticamente en el backend.
+    """
+    __tablename__ = "strategy_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(String, unique=True, index=True)  # ej: "rsi_macd_v1"
+    name = Column(String)  # Nombre legible
+    description = Column(Text, nullable=True)
+    version = Column(String, default="1.0.0")
+    
+    # Configuración operativa
+    enabled = Column(Integer, default=1)  # 1 = activa, 0 = pausada
+    interval_seconds = Column(Integer, default=300)  # Cada cuánto ejecutar (5 min default)
+    tokens = Column(String)  # JSON array: ["ETH", "BTC", "SOL"]
+    timeframes = Column(String)  # JSON array: ["30m", "1h"]
+    
+    # Metadatos
+    risk_profile = Column(String, default="medium")  # low | medium | high
+    mode = Column(String, default="CUSTOM")  # LITE | PRO | CUSTOM
+    source_type = Column(String, default="ENGINE")  # ENGINE | LLM | HYBRID
+    
+    # Estadísticas (actualizadas por evaluaciones)
+    total_signals = Column(Integer, default=0)
+    win_rate = Column(Float, default=0.0)
+    avg_confidence = Column(Float, default=0.0)
+    last_execution = Column(DateTime, nullable=True)
+    
+    # Config JSON (parámetros específicos de la estrategia)
+    config_json = Column(Text, nullable=True)  # JSON: {"rsi_period": 14, ...}
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
