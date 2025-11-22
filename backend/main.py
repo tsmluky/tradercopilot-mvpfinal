@@ -37,21 +37,9 @@ def health_check():
 # === CORS Configuration ===
 # En desarrollo: localhost
 # En producción (Railway): permitir todos los orígenes o configurar específicamente
-if os.getenv("RAILWAY_ENVIRONMENT"):
-    # Producción en Railway - permitir todos los orígenes
-    origins = ["*"]
-    print("[CORS] Production mode - allowing all origins")
-else:
-    # Desarrollo local
-    origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://tradercopilot-mvpfinal.vercel.app",
-        "https://tradercopilot-mvpfinal.vercel.app/",
-    ]
-    print("[CORS] Development mode - allowing local origins only")
+# CORS Configuration - Permissive for MVP
+origins = ["*"]
+print("[CORS] MVP Mode - Allowing all origins")
 
 app.add_middleware(
     CORSMiddleware,
