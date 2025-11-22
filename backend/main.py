@@ -15,9 +15,12 @@ load_dotenv(os.path.join(current_dir, ".env"))
 
 # ==== 2. Imports locales ====
 from indicators.market import get_market_data  # Capa Quant
-from indicators.market import get_market_data  # Capa Quant
 from models import LiteReq, LiteSignal, ProReq, AdvisorReq  # Modelos oficiales LITE/PRO
 from pydantic import BaseModel
+
+# === 2b. Imports del Signal Hub unificado ===
+from core.schemas import Signal
+from core.signal_logger import log_signal, signal_from_dict
 
 
 # ==== 3. FastAPI App ====
@@ -58,7 +61,7 @@ app.add_middleware(
 
 # ==== DB Init ====
 from database import engine, Base
-from models_db import Signal, SignalEvaluation, User # Import models to register them
+from models_db import Signal, SignalEvaluation, User, StrategyConfig  # Import models to register them
 
 @app.on_event("startup")
 async def startup():
@@ -74,6 +77,26 @@ async def startup():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Registrar estrategias built-in
+    print("\n📦 Registering strategies...")
+    from strategies.registry import get_registry
+    from strategies.example_rsi_macd import RSIMACDDivergenceStrategy
+    from strategies.ma_cross import MACrossStrategy
+    from strategies.donchian import DonchianStrategy
+    from strategies.bb_mean_reversion import BBMeanReversionStrategy
+    
+    registry = get_registry()
+    registry.register(RSIMACDDivergenceStrategy)
+    registry.register(MACrossStrategy)
+    registry.register(DonchianStrategy)
+    registry.register(BBMeanReversionStrategy)
+    print("✅ Strategies registered\n")
+
+
+# ==== Routers ====
+from routers.strategies import router as strategies_router
+app.include_router(strategies_router)
 
 
 # ==== 4. Configuración global ====
@@ -638,43 +661,41 @@ async def get_logs(mode: str, token: str):
                 print(f"[LOGS] Loaded {len(db_logs)} logs from DB")
 
     except Exception as e:
-        print(f"[LOGS] Error reading from DB: {e}. Continuing with CSVs.")
-        pass
-
-    # 2. Leer de CSV (Legacy) y combinar
-    mode_dir = os.path.join(LOGS_DIR, mode_upper)
-    if os.path.exists(mode_dir):
-        csv_logs = []
-        # Si token es 'all', leemos TODOS los CSVs
-        if token_lower == "all":
-            try:
-                for filename in os.listdir(mode_dir):
-                    if filename.endswith(".csv"):
-                        filepath = os.path.join(mode_dir, filename)
-                        with open(filepath, newline="", encoding="utf-8") as f:
+        print(f"[LOGS] Error reading from DB: {e}. Falling back to CSV.")
+        # 2. Fallback: Leer de CSV solo si DB falla completamente
+        mode_dir = os.path.join(LOGS_DIR, mode_upper)
+        if os.path.exists(mode_dir):
+            csv_logs = []
+            # Si token es 'all', leemos TODOS los CSVs
+            if token_lower == "all":
+                try:
+                    for filename in os.listdir(mode_dir):
+                        if filename.endswith(".csv"):
+                            filepath = os.path.join(mode_dir, filename)
+                            with open(filepath, newline="", encoding="utf-8") as f:
+                                reader = csv.DictReader(f)
+                                for row in reader:
+                                    if "token" not in row:
+                                        row["token"] = filename.replace(".csv", "").replace(".evaluated", "").upper()
+                                    csv_logs.append(row)
+                except Exception as e:
+                    print(f"[LOGS] Error reading CSVs for ALL: {e}")
+            else:
+                # Token específico
+                filename = f"{token_lower}.evaluated.csv" if mode_upper == "EVALUATED" else f"{token_lower}.csv"
+                csv_path = os.path.join(mode_dir, filename)
+                if os.path.exists(csv_path):
+                    try:
+                        with open(csv_path, newline="", encoding="utf-8") as f:
                             reader = csv.DictReader(f)
                             for row in reader:
-                                if "token" not in row:
-                                    row["token"] = filename.replace(".csv", "").replace(".evaluated", "").upper()
                                 csv_logs.append(row)
-            except Exception as e:
-                print(f"[LOGS] Error reading CSVs for ALL: {e}")
-        else:
-            # Token específico
-            filename = f"{token_lower}.evaluated.csv" if mode_upper == "EVALUATED" else f"{token_lower}.csv"
-            csv_path = os.path.join(mode_dir, filename)
-            if os.path.exists(csv_path):
-                try:
-                    with open(csv_path, newline="", encoding="utf-8") as f:
-                        reader = csv.DictReader(f)
-                        for row in reader:
-                            csv_logs.append(row)
-                except Exception as e:
-                    print(f"[LOGS] Error reading CSV {filename}: {e}")
+                    except Exception as e:
+                        print(f"[LOGS] Error reading CSV {filename}: {e}")
 
-        if csv_logs:
-            print(f"[LOGS] Loaded {len(csv_logs)} logs from CSV")
-            all_logs.extend(csv_logs)
+            if csv_logs:
+                print(f"[LOGS] Loaded {len(csv_logs)} logs from CSV")
+                all_logs.extend(csv_logs)
 
     # 3. Ordenar todo por timestamp descendente y limitar
     # Normalizamos timestamps para poder ordenar
@@ -698,7 +719,9 @@ async def get_logs(mode: str, token: str):
 def analyze_lite(req: LiteReq):
     """
     Genera una señal LITE para un token/timeframe, usando la lógica LITE v2 adaptada
-    a contratos oficiales:
+    a contratos oficiales.
+
+    Ahora usa el schema Signal unificado del Signal Hub.
 
     - direction ∈ {"long","short"}
     - token en mayúsculas en la respuesta y en el CSV
@@ -715,23 +738,29 @@ def analyze_lite(req: LiteReq):
     # 2) Construcción de señal LITE (modelo Pydantic + validación)
     lite_signal, indicators = _build_lite_from_market(token, tf, market)
 
-    # 3) Guardar señal en CSV y DB
-    ts_str = lite_signal.timestamp.replace(microsecond=0).isoformat() + "Z"
-    log_entry = {
-        "timestamp": ts_str,
-        "token": lite_signal.token,
-        "timeframe": lite_signal.timeframe,
-        "direction": lite_signal.direction,
-        "entry": lite_signal.entry,
-        "tp": lite_signal.tp,
-        "sl": lite_signal.sl,
-        "confidence": lite_signal.confidence,
-        "rationale": lite_signal.rationale,
-        "source": lite_signal.source,
-    }
-    save_strict_log("LITE", log_entry)
+    # 3) Crear instancia de Signal unificado
+    unified_signal = Signal(
+        timestamp=lite_signal.timestamp,
+        strategy_id="lite_v2",  # ID de la estrategia
+        mode="LITE",
+        token=lite_signal.token,
+        timeframe=lite_signal.timeframe,
+        direction=lite_signal.direction,
+        entry=lite_signal.entry,
+        tp=lite_signal.tp,
+        sl=lite_signal.sl,
+        confidence=lite_signal.confidence,
+        rationale=lite_signal.rationale,
+        source=lite_signal.source,
+        extra={
+            "indicators": indicators  # Metadatos adicionales
+        }
+    )
 
-    # 4) Respuesta (base LITE + indicadores extra para UI)
+    # 4) Guardar usando el logger unificado
+    log_signal(unified_signal)
+
+    # 5) Respuesta (base LITE + indicadores extra para UI)
     response = lite_signal.model_dump()
     response["indicators"] = indicators
     return response
@@ -748,6 +777,8 @@ def analyze_pro(req: ProReq):
     - Señal LITE sugerida (sesgo + niveles)
     - Contexto RAG desde brain/{token}/
     - Mensaje opcional del usuario (user_message)
+
+    Ahora usa el schema Signal unificado del Signal Hub.
 
     Por ahora NO llama a ningún LLM externo: el análisis es determinista.
     Más adelante se sustituirá la construcción interna por una llamada a DeepSeek/GPT
@@ -770,23 +801,31 @@ def analyze_pro(req: ProReq):
     # 4) Markdown PRO
     markdown = _build_pro_markdown(req, lite_signal, indicators, brain_ctx)
 
-    # 5) Log PRO (usamos mismo CSV_HEADERS; algunos campos son hints)
-    now_ts = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    pro_log = {
-        "timestamp": now_ts,
-        "token": lite_signal.token,
-        "timeframe": lite_signal.timeframe,
-        "direction": lite_signal.direction,
-        "entry": lite_signal.entry,
-        "tp": lite_signal.tp,
-        "sl": lite_signal.sl,
-        "confidence": lite_signal.confidence,
-        "rationale": "PRO analysis generated (local v1, sin LLM)",
-        "source": "PRO_V1_LOCAL",
-    }
-    save_strict_log("PRO", pro_log)
+    # 5) Crear instancia de Signal unificado para PRO
+    unified_signal = Signal(
+        timestamp=datetime.utcnow(),
+        strategy_id="pro_v1_local",
+        mode="PRO",
+        token=lite_signal.token,
+        timeframe=lite_signal.timeframe,
+        direction=lite_signal.direction,
+        entry=lite_signal.entry,
+        tp=lite_signal.tp,
+        sl=lite_signal.sl,
+        confidence=lite_signal.confidence,
+        rationale="PRO analysis generated (local v1, sin LLM)",
+        source="PRO_V1_LOCAL",
+        extra={
+            "analysis_markdown": markdown,
+            "rag_sources_used": list(brain_ctx.keys()),
+            "user_message": req.user_message,
+        }
+    )
 
-    # 6) Respuesta: mantenemos JSON para que el frontend tenga margen
+    # 6) Guardar usando el logger unificado
+    log_signal(unified_signal)
+
+    # 7) Respuesta: mantenemos JSON para que el frontend tenga margen
     return {
         "analysis": markdown,
         "meta": {
@@ -809,6 +848,8 @@ def analyze_advisor(req: AdvisorReq):
     """
     Analiza una posición abierta y sugiere alternativas.
     Versión local determinista (sin LLM).
+    
+    Ahora usa el schema Signal unificado del Signal Hub.
     """
     token = req.token.upper()
     
@@ -851,19 +892,30 @@ def analyze_advisor(req: AdvisorReq):
         "confidence": confidence
     }
     
-    # Log
-    log_entry = {
-        "timestamp": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
-        "token": token,
-        "direction": req.direction,
-        "entry": req.entry,
-        "tp": req.tp,
-        "sl": req.sl,
-        "confidence": confidence,
-        "rationale": f"Advisor check. RR={rr:.2f}",
-        "source": "ADVISOR_V1_LOCAL"
-    }
-    save_strict_log("ADVISOR", log_entry)
+    # Crear instancia de Signal unificado para ADVISOR
+    unified_signal = Signal(
+        timestamp=datetime.utcnow(),
+        strategy_id="advisor_v1_local",
+        mode="ADVISOR",
+        token=token,
+        timeframe="N/A",  # ADVISOR no tiene timeframe específico
+        direction=req.direction,
+        entry=req.entry,
+        tp=req.tp,
+        sl=req.sl,
+        confidence=confidence,
+        rationale=f"Advisor position check. RR={rr:.2f}",
+        source="ADVISOR_V1_LOCAL",
+        extra={
+            "risk_score": risk_score,
+            "rr_ratio": round(rr, 2),
+            "size_quote": req.size_quote,
+            "alternatives": alternatives,
+        }
+    )
+    
+    # Guardar usando el logger unificado
+    log_signal(unified_signal)
     
     return response
 
