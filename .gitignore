@@ -30,3 +30,8 @@ Thumbs.db
 *.zip
 *.bak
 logs/
+
+# === Trading Lab ===
+trading_lab/data/
+trading_lab/*.csv
+trading_lab/backtest_results/

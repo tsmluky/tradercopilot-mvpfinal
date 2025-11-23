@@ -1,0 +1,6 @@
+
+FullName
+--------
+C:\Users\lukx\Desktop\trading_lab\models\gru_price_prediction.py
+C:\Users\lukx\Desktop\trading_lab\combinations.json
+

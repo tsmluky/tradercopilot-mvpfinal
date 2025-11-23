@@ -1,0 +1,5 @@
+run_id,strategy_id,display_name,risk_label,status,symbol,timeframe,side,entry_price,tp_price,sl_price,ts_signal,ts_entry
+run_20250812_171435,ETH_1D_TREND_DONCH20_AGGR_V0,ETH 1D • Donchian(20) • Aggressive,Aggressive,experimental,ETHUSDT,1d,NO_TRADE,,,,,
+run_20250812_171435,ETH_4H_RANGE_BBMR_V1,ETH 4H • BB Mean Reversion • TP1.2/SL0.8,Conservative,active,ETHUSDT,4h,NO_TRADE,,,,,
+run_20250812_171435,ETH_4H_TREND_MA2050_V1,ETH 4H • MA(20/50) • TP1.5/SL1.0,Balanced,active,ETHUSDT,4h,NO_TRADE,,,,,
+run_20250812_171435,SOL_4H_TREND_MA2050_V1,SOL 4H • MA(20/50) • TP1.5/SL1.0,Balanced,active,SOLUSDT,4h,NO_TRADE,,,,,

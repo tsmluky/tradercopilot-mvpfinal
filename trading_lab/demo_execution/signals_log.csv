@@ -1,0 +1,2 @@
+strategy_id,token,timeframe,direction,entry_price,tp_price,sl_price,confidence,rationale,source,created_at,status,result,exit_price,pnl_pct
+DONCHIAN_BREAKOUT_V1,ETH,4h,LONG,4357.0730243568,4512.055581806973,4270.971603551147,100.0,Donchian Breakout (20 periods),quant_lab,2025-11-21 19:40:53.687887,PENDING,,,
