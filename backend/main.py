@@ -51,7 +51,7 @@ app.add_middleware(
 
 # ==== DB Init ====
 from database import engine, Base
-from models_db import Signal, SignalEvaluation, User, StrategyConfig  # Import models to register them
+from models_db import Signal as SignalDB, SignalEvaluation, User, StrategyConfig  # Import models to register them
 
 @app.on_event("startup")
 async def startup():
