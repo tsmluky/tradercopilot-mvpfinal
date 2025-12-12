@@ -159,8 +159,8 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
           {evaluation ? (
             <div
               className={`flex items-center gap-2 px-3 py-1 rounded-full border ${evaluation.status === 'WIN'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                  : 'bg-rose-500/20 border-rose-500 text-rose-400'
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                : 'bg-rose-500/20 border-rose-500 text-rose-400'
                 } mb-1`}
             >
               {evaluation.status === 'WIN' ? (
@@ -245,15 +245,35 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Discuss */}
+          <button
+            onClick={() => {
+              // Dispatch synthetic event or use a global context to open chat
+              // Ideally parent should handle this, but for MVP we can use a custom event or props (if we refactor)
+              // For now, let's assume we pass a prop or use a global store.
+              // Simpler: Dispatch event to be caught by App.tsx or Layout
+              window.dispatchEvent(new CustomEvent('open-advisor-chat', {
+                detail: {
+                  token: signal.token,
+                  context: signal
+                }
+              }));
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20 active:scale-95 duration-100"
+          >
+            <Shield size={14} />
+            DISCUSS
+          </button>
+
           {/* Track button con expiry */}
           <button
             onClick={handleToggleFollow}
             disabled={isExpired && !isFollowed}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95 duration-100 ${isFollowed
-                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20'
-                : isExpired
-                  ? 'bg-slate-800 text-slate-600 border-slate-800 cursor-not-allowed'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white hover:border-slate-500'
+              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20'
+              : isExpired
+                ? 'bg-slate-800 text-slate-600 border-slate-800 cursor-not-allowed'
+                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white hover:border-slate-500'
               }`}
           >
             {isFollowed ? (
@@ -275,8 +295,8 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
           <button
             onClick={handleCopy}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 duration-100 ${copied
-                ? 'bg-emerald-500 text-white'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
               }`}
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}

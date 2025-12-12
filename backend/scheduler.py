@@ -60,11 +60,13 @@ class StrategyScheduler:
         from strategies.ma_cross import MACrossStrategy
         from strategies.donchian import DonchianStrategy
         from strategies.bb_mean_reversion import BBMeanReversionStrategy
+        from strategies.DonchianBreakoutV2 import DonchianBreakoutV2
         
         self.registry.register(RSIMACDDivergenceStrategy)
         self.registry.register(MACrossStrategy)
         self.registry.register(DonchianStrategy)
         self.registry.register(BBMeanReversionStrategy)
+        self.registry.register(DonchianBreakoutV2)
         print("✅ Strategies registered")
         
         print(f"\nPress Ctrl+C to stop\n")
@@ -200,6 +202,18 @@ class StrategyScheduler:
                 
                 # Sleep hasta próximo chequeo
                 print(f"\n  😴 Sleeping for {self.loop_interval}s...")
+                
+                # --- NUEVO: Ejecutar evaluación de señales ---
+                print("  ⚖️  Running signal evaluator...")
+                try:
+                    from evaluated_logger import evaluate_all_tokens
+                    processed, new_evals = evaluate_all_tokens()
+                    if new_evals > 0:
+                        print(f"  ✅ Evaluated {new_evals} pending signals")
+                except Exception as e:
+                    print(f"  ❌ Error running evaluator: {e}")
+                # ---------------------------------------------
+
                 time.sleep(self.loop_interval)
         
         except KeyboardInterrupt:

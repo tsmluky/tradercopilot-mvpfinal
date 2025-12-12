@@ -1,0 +1,5 @@
+"Strategy","Timeframe","Total","Wins","Losses","Open","WinRate","AvgPnL","TotalPnL","RExpectancy","ProfitFactor","Grade"
+"BB Mean Reversion","15m","31","10","16","5","32,3","-179,13","-5553,00","-1,79","0,47","F"
+"BB Mean Reversion","1h","28","20","1","7","71,4","273,93","7670,00","2,74","47,55","A+"
+"RSI Divergence","1h","5","0","0","5","0","0,00","0,00","0,00","0","F"
+"RSI Divergence","4h","2","0","0","2","0","0","0","0","0","F"

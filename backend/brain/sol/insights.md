@@ -1,29 +1,39 @@
-# Solana (SOL) - Market Insights
+# SOL · Alta Velocidad y Beta Elevado
 
-## Current Market Position
-Solana se ha consolidado como la blockchain de alto rendimiento líder, compitiendo directamente con Ethereum en DeFi, NFTs y aplicaciones consumer.
+Solana es una altcoin de alta beta, con movimientos porcentuales muy agresivos,
+tanto al alza como a la baja.
 
-## Technical Performance
-- **TPS**: Capacidad teórica de 65,000 TPS, promedio real de 2,000-4,000 TPS
-- **Fees**: Costos de transacción extremadamente bajos (~$0.00025 por tx)
-- **Finality**: Confirmación de transacciones en ~400ms
+## Comportamiento típico
 
-## Ecosystem Growth
-- Explosión en aplicaciones consumer (gaming, social, payments)
-- DeFi TVL recuperándose post-FTX, superando $2B
-- NFT marketplace activity liderando en volumen vs otras chains
+- Extremadamente reactiva a flujos de liquidez especulativa.
+- Rallies verticales seguidos de correcciones muy violentas.
+- Estructuras técnicas limpias en 4h y 1d, pero con sombras largas y barridos
+  frecuentes de liquidez.
 
-## Network Resilience
-- Mejoras significativas en estabilidad post-2023
-- Reducción drástica en outages de red
-- Incremento en número de validadores y descentralización
+---
 
-## Developer Momentum
-- Crecimiento acelerado en nuevos proyectos y developers
-- Firedancer client (Jumptrading) en desarrollo, prometiendo 1M+ TPS
-- Innovación en compressed NFTs y state compression
+## Estrategia MA 20/50 · 4h (núcleo QUANT en SOL)
 
-## Institutional Adoption
-- Visa, Shopify y otras empresas explorando Solana para payments
-- Creciente interés institucional post-recuperación de FTX
-- Solana Mobile (Saga phone) generando ecosistema mobile-first único
+En los backtests internos de TraderCopilot sobre SOLUSDT:
+
+- Timeframe: **4h**
+- Estrategia: **MA Cross 20/50**
+- Performance aproximada:
+  - Profit Factor ≈ **1.25**
+  - Retorno acumulado ≈ **+30.1%**
+  - Drawdown máximo ≈ **-19.9%**
+  - Número de trades ≈ **90**
+
+Conclusiones:
+
+- Buena estrategia core para capturar tramos tendenciales de SOL.
+- DD coherente con la volatilidad estructural del activo.
+- Exige respeto estricto de stops y tamaño de posición.
+
+---
+
+## Riesgo y uso
+
+- No es un activo para perfiles ultra conservadores.
+- Ideal para aplicar señales swing con mentalidad profesional, no para
+  perseguir cada vela en marcos muy bajos.

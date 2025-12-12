@@ -1,37 +1,11 @@
-# === Python ===
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.log
 .venv/
-venv/
-.env
-*.sqlite3
-
-# === Node / Frontend ===
+env/
+__pycache__/
+*.pyc
+logs/
+*.db
 node_modules/
 dist/
 build/
-.next/
-.npm/
-.pnp.*
-coverage/
-*.local
-
-# === Editor / SO ===
-.vscode/
-.idea/
-*.iml
-.DS_Store
-Thumbs.db
-
-# === Otros ===
-*.zip
-*.bak
-logs/
-
-# === Trading Lab ===
-trading_lab/data/
-trading_lab/*.csv
-trading_lab/backtest_results/
+.env
+.env.*

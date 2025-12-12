@@ -1,5 +1,19 @@
-Bitcoin mantiene consolidación en rango $62K-$68K tras reciente volatilidad. Flujos institucionales vía ETFs spot muestran acumulación neta. Hash rate alcanza nuevos máximos históricos, señalando confianza de mineros. Próximo halving en ~450 días genera expectativas de ciclo alcista. Correlación con índices tradicionales disminuyendo, fortaleciendo narrativa de descorrelación.
+La narrativa de BTC gira alrededor de:
 
-Desarrollos regulatorios en EE.UU. muestran claridad creciente post-aprobación de ETFs. Adopción en El Salvador continúa expandiéndose. Lightning Network registra crecimiento en capacidad y nodos activos.
+- Adopción institucional (ETFs, reservas de empresas, custodios regulados).
+- Halvings y dinámica de oferta/emisión.
+- Percepción de BTC como "oro digital" y activo macro.
 
-Análisis técnico sugiere formación de patrón de acumulación en timeframes mayores. RSI en zona neutral permite movimientos en ambas direcciones. Volumen on-chain estable con incremento en transacciones >$100K.
+---
+
+En TraderCopilot, las noticias de BTC se usan para:
+
+- Entender si un movimiento fuerte es extensión natural de tendencia
+  o un shock asociado a un evento concreto.
+- Poner en contexto rupturas de rangos en marcos altos.
+- Evaluar si tiene sentido exponerse más a altcoins o ser más defensivos.
+
+---
+
+El objetivo no es perseguir cada titular, sino recordar que BTC es el ancla
+macro que condiciona el resto del mercado.

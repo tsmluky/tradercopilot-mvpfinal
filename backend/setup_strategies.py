@@ -72,6 +72,37 @@ def setup_db_configs():
             print("  ✅ Created config for: rsi_macd_divergence_v1")
         else:
             print("  ℹ️  Config already exists for: rsi_macd_divergence_v1")
+            
+        # Configuración para DonchianBreakoutV2
+        existing_donchian = db.query(StrategyConfig).filter(
+            StrategyConfig.strategy_id == "donchian_v2"
+        ).first()
+        
+        if not existing_donchian:
+            config_donchian = StrategyConfig(
+                strategy_id="donchian_v2",
+                name="Donchian Breakout V2 (Refined)",
+                description="Trend following breakout strategy with Volatility (ATR) and Trend (EMA200) filters.",
+                version="2.0.0",
+                enabled=1,  # Activada por defecto para testing
+                interval_seconds=60,  # 1 minuto para pruebas rápidas
+                tokens=json.dumps(["ETH", "BTC"]),
+                timeframes=json.dumps(["1h"]),
+                risk_profile="medium-high",
+                mode="PRO",
+                source_type="ENGINE",
+                config_json=json.dumps({
+                    "period": 20,
+                    "atr_period": 14,
+                    "atr_ma_period": 20,
+                    "ema_trend_period": 200
+                })
+            )
+            db.add(config_donchian)
+            db.commit()
+            print("  ✅ Created config for: donchian_v2")
+        else:
+            print("  ℹ️  Config already exists for: donchian_v2")
         
     except Exception as e:
         print(f"  ❌ Error: {e}")

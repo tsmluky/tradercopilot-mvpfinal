@@ -10,9 +10,9 @@ sys.path.append(os.getcwd())
 
 from demo_execution.strategies.implementations.trend_ma_strategy import TrendMaCrossStrategy
 from demo_execution.strategies.implementations.donchian_strategy import DonchianBreakoutStrategy
-from core.trading_rules.indicators import ensure_features
-from core.trading_rules.side_generators import side_ma_cross, side_donchian
-from core.trading_rules.signal_builder import compute_entry_tp_sl
+from trading_rules.indicators import ensure_features
+from trading_rules.side_generators import side_ma_cross, side_donchian
+from trading_rules.signal_builder import compute_entry_tp_sl
 
 # --- Backtest Engine Helpers ---
 

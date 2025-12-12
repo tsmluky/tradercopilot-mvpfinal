@@ -1,6 +1,10 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
+from dotenv import load_dotenv
+
+# Load .env file FIRST
+load_dotenv()
 
 # Railway provides DATABASE_URL for PostgreSQL
 # Locally we use SQLite

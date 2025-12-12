@@ -1,15 +1,19 @@
-Direcciones activas: Incremento del 5% en últimos 7 días, indicando creciente participación retail.
+En BTC, el on-chain relevante incluye:
 
-Exchange netflow: Salidas netas de -12,500 BTC en última semana, señal alcista de acumulación en cold wallets.
+- Distribución por edad de UTXOs (cohortes de holders largos vs manos débiles).
+- Flujo de BTC hacia/desde exchanges.
+- Actividad de grandes wallets en zonas clave de precio.
 
-Whale activity: 15 transacciones >$10M detectadas en últimas 24h, principalmente movimientos exchange-to-wallet (acumulación).
+---
 
-Supply en exchanges: Mínimo de 6 meses en 2.1M BTC (~10.5% del supply circulante), reduciendo presión vendedora.
+Aunque el MVP no calcula métricas on-chain en tiempo real, conceptualmente:
 
-MVRV Ratio: 1.8 - zona de valor razonable, históricamente favorable para acumulación.
+- Acumulación en mínimos históricos refuerza la lectura constructiva de señales
+  alcistas en marcos altos.
+- Distribución prolongada cerca de máximos aumenta la prudencia ante señales long
+  tardías y favorece la toma de beneficios.
 
-Realized Price: $28,500 - precio promedio de adquisición on-chain, muy por debajo del precio spot.
+---
 
-Long-term holder supply: 75% del supply no se ha movido en >6 meses, indicando convicción de holders.
-
-Mining reserves: Incremento en reservas de mineros, menor presión vendedora post-halving anticipado.
+El analista debe considerar que BTC tiene "memoria histórica" en la cadena que
+no siempre se refleja solo en velas diarias.

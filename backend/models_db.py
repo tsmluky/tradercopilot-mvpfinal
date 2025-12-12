@@ -19,6 +19,7 @@ class Signal(Base):
     source = Column(String)
     mode = Column(String) # LITE, PRO, ADVISOR
     raw_response = Column(Text, nullable=True)
+    strategy_id = Column(String, index=True, nullable=True)
     
     # Relationship to evaluation
     evaluation = relationship("SignalEvaluation", back_populates="signal", uselist=False)
@@ -83,3 +84,13 @@ class StrategyConfig(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    endpoint = Column(String, unique=True, index=True)
+    p256dh = Column(String)
+    auth = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

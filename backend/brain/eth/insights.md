@@ -1,29 +1,44 @@
-# Ethereum (ETH) - Market Insights
+# ETH · Perfil Técnico y Rol en TraderCopilot
 
-## Current Market Position
-Ethereum mantiene su posición como la blockchain líder para smart contracts y DeFi, con el ecosistema más robusto de aplicaciones descentralizadas.
+Ethereum es el activo **core de referencia** para swing trading después de BTC.
+En la práctica, se comporta como un beta-amplificado de BTC: sigue la dirección
+macro del mercado, pero con movimientos porcentuales más agresivos, sobre todo
+en fases de expansión de liquidez y narrativas DeFi / L2.
 
-## Post-Merge Dynamics
-- **Proof of Stake**: Transición exitosa a PoS completada, reduciendo emisiones en ~90%
-- **Staking**: Más de 30M ETH stakeados (~25% del supply total)
-- **Burn mechanism**: EIP-1559 continúa reduciendo supply con quema de fees
+## Comportamiento típico
 
-## Layer 2 Ecosystem
-- Explosión de L2s (Arbitrum, Optimism, Base, zkSync) escalando throughput
-- Migración de actividad a L2s reduciendo fees en mainnet
-- Incremento en TVL total del ecosistema Ethereum (L1 + L2s)
+- Alta correlación estructural con BTC (≈0.8–0.9 en horizontes medios).
+- Suele retrasarse ligeramente respecto a BTC en cambios de ciclo (tops y bottoms).
+- Reacciona de forma sensible a:
+  - Narrativa de escalabilidad (L2: Arbitrum, Optimism, etc.).
+  - Congestión y fees (gas alto = fricción para uso real).
+  - Percepción regulatoria de los smart contracts y del staking.
 
-## DeFi Dominance
-- 60%+ de TVL total en DeFi reside en Ethereum
-- Protocolos principales (Aave, Uniswap, Maker) con liquidez profunda
-- Innovación continua en primitivas financieras
+---
 
-## ETH as Money
-- Narrativa de "ultrasound money" fortaleciéndose
-- Supply neto deflacionario en períodos de alta actividad
-- ETH/BTC ratio como indicador clave de fortaleza relativa
+## ETH · Estrategia MA 20/50 · 4h (núcleo QUANT)
 
-## Upcoming Catalysts
-- Dencun upgrade mejorando eficiencia de L2s
-- Incremento en adopción institucional vía ETFs spot (pendiente aprobación)
-- Expansión de Real World Assets (RWA) tokenizados en Ethereum
+En los backtests internos de TraderCopilot sobre ETHUSDT:
+
+- Timeframe: **4h**
+- Estrategia: **MA Cross 20/50**
+- Performance aproximada:
+  - Profit Factor ≈ **1.20**
+  - Retorno acumulado ≈ **+16.9%**
+  - Drawdown máximo ≈ **-16.8%**
+  - Número de trades > **90**
+
+Conclusiones operativas:
+
+- Edge **moderado pero real** en entornos tendenciales.
+- Sufre whipsaws en rangos prolongados, como cualquier sistema de medias.
+- Estrategia adecuada como **columna vertebral cuantitativa**, no como sistema milagro.
+
+---
+
+## ETH · Riesgo y uso recomendado
+
+- ETH puede moverse un **5–10% en un solo día** sin catalizadores extremos.
+- Activo adecuado para traders que aceptan volatilidad media-alta con disciplina en stops.
+- En TraderCopilot se usa ETH como activo central para aplicar señales swing, no como
+  casino apalancado.

@@ -1,29 +1,32 @@
-# Bitcoin (BTC) - Market Insights
+# BTC · Activo Rector y Referencia de Ciclo
 
-## Current Market Position
-Bitcoin mantiene su posición como la criptomoneda líder por capitalización de mercado, actuando como el principal indicador de sentimiento del mercado cripto global.
+Bitcoin es el activo de referencia del mercado cripto. Marca el pulso del ciclo
+macro y condiciona la liquidez disponible para el resto de tokens.
 
-## Technical Outlook
-- **Dominancia**: BTC mantiene ~50% de dominancia en el mercado total de criptomonedas
-- **Correlación**: Alta correlación con índices de riesgo tradicionales (S&P 500, Nasdaq)
-- **Volatilidad**: Volatilidad implícita en niveles moderados comparado con ciclos anteriores
+## Comportamiento típico
 
-## Key Support & Resistance Levels
-- **Soporte psicológico**: $60,000 - zona de acumulación institucional
-- **Resistencia clave**: $70,000 - máximo histórico previo
-- **Zona de consolidación**: $62,000 - $68,000
+- Volatilidad menor que muchas altcoins, pero suficiente para swing trading.
+- Suele liderar los cambios de ciclo: primero gira BTC, luego responden ETH y las alts.
+- Reacciona con fuerza a:
+  - Cambios macro (tipos de interés, riesgo global).
+  - Narrativa institucional (ETFs, reservas, adopción).
+  - Eventos propios (halvings, actividad de wallets antiguas).
 
-## Institutional Activity
-- Creciente adopción institucional vía ETFs spot de Bitcoin
-- Flujos netos positivos en productos de inversión regulados
-- Incremento en holdings de tesorería corporativa
+---
 
-## Network Health
-- Hash rate en máximos históricos, indicando seguridad de red robusta
-- Dificultad de minería ajustándose al alza
-- Actividad on-chain estable con incremento en transacciones de alto valor
+## BTC en TraderCopilot
 
-## Macro Considerations
-- Narrativa de "oro digital" fortaleciéndose en entorno de incertidumbre monetaria
-- Correlación con activos de riesgo disminuyendo gradualmente
-- Adopción en mercados emergentes como cobertura contra inflación
+- Se usa como **termómetro principal de mercado**.
+- Es el primer lugar donde buscar confirmación de cambios de régimen:
+  - Ruptura de rangos clave.
+  - Confirmación de tendencias.
+- Las señales en ETH y SOL se interpretan a menudo a la luz de la estructura
+  que tenga BTC en marcos de 4h y 1d.
+
+---
+
+Timeframes recomendados para lectura macro:
+- 4h y 1d como ejes de ciclo.
+- 1h para afinar entradas/salidas.
+- Marcos muy bajos (5m/15m) se reservan para ideas de scalping futuro,
+  no para el MVP actual.

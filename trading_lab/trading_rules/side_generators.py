@@ -20,25 +20,35 @@ def side_ma_cross(df: pd.DataFrame, fast: int, slow: int) -> pd.Series:
 
 def side_donchian(df: pd.DataFrame, n: int, atr_pct_min: float) -> pd.Series:
     """
-    Donchian Breakout Strategy:
-    LONG when High > Max(High, n) of previous candles AND ATR% > min AND Price > EMA200.
-    SHORT when Low < Min(Low, n) of previous candles AND ATR% > min AND Price < EMA200.
+    Donchian Breakout Strategy (Refined):
+    LONG when High > Max(High, n) AND ATR > SMA(ATR, 20) AND Close > EMA200.
+    SHORT when Low < Min(Low, n) AND ATR > SMA(ATR, 20) AND Close < EMA200.
     """
     high, low, close = df["high"], df["low"], df["close"]
     
-    # Donchian channels (shifted by 1 to avoid lookahead bias if using current candle, 
-    # but for 'live' signal on close, we check if we broke the PREVIOUS n highs)
+    # Donchian channels
     donch_high = high.rolling(window=n, min_periods=n).max().shift(1)
     donch_low  = low.rolling(window=n, min_periods=n).min().shift(1)
     
-    atr_pct = (df["ATR"] / close).fillna(0.0)
+    # Volatility Filter: ATR > SMA(ATR, 20)
+    atr = df["ATR"]
+    atr_ma = atr.rolling(window=20).mean()
+    volatility_ok = atr > atr_ma
+
+    # Trend Filter: EMA200
+    # Ensure EMA200 exists in DF, otherwise skip or calculate
+    if "EMA200" in df.columns:
+        ema200 = df["EMA200"]
+        trend_up = close > ema200
+        trend_dn = close < ema200
+    else:
+        # Fallback if not pre-calculated
+        ema200 = close.ewm(span=200, adjust=False).mean()
+        trend_up = close > ema200
+        trend_dn = close < ema200
     
-    # Regime filter
-    regime_up = close > df["EMA200"]
-    regime_dn = close < df["EMA200"]
-    
-    long_sig  = (high > donch_high) & (atr_pct >= atr_pct_min) & regime_up
-    short_sig = (low  < donch_low)  & (atr_pct >= atr_pct_min) & regime_dn
+    long_sig  = (high > donch_high) & volatility_ok & trend_up
+    short_sig = (low  < donch_low)  & volatility_ok & trend_dn
     
     return pd.Series(np.where(long_sig, "LONG", np.where(short_sig, "SHORT", "")), index=df.index)
 

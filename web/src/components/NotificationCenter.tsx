@@ -1,15 +1,123 @@
 
-import React, { useState } from 'react';
-import { Bell, CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
-import { Notification } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Bell, CheckCircle, AlertTriangle, Info, BellRing } from 'lucide-react';
+import { Notification as AppNotification } from '../types';
+import { API_BASE_URL } from '../constants';
+
+// Helper to convert VAPID key
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export const NotificationCenter: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: '1', title: 'Target Hit', message: 'ETH/USDT hit TP1 (+1.5R)', time: '2m ago', type: 'success', read: false },
-    { id: '2', title: 'New Signal', message: 'BTC/USDT Long Setup Detected', time: '15m ago', type: 'info', read: false },
-    { id: '3', title: 'Risk Alert', message: 'High volatility expected in 1h', time: '2h ago', type: 'alert', read: true },
-  ]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  const [subscribing, setSubscribing] = useState(false);
+
+  useEffect(() => {
+    // 1. Initial Check for Push Support
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('unsupported');
+    } else if (Notification.permission === 'granted') {
+      setPushStatus('granted');
+    } else if (Notification.permission === 'denied') {
+      setPushStatus('denied');
+    }
+
+    // 2. Fetch Recent Signals as Notifications
+    const fetchNotifications = async () => {
+      try {
+        // We use logs as the source of truth for "notifications" for now
+        const res = await fetch(`${API_BASE_URL}/logs/recent?limit=10`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped: AppNotification[] = data.map((log: any) => ({
+            id: log.id.toString(),
+            title: `${log.direction} ${log.token}`,
+            message: `Entry: ${log.entry} | Source: ${log.source}`,
+            time: new Date(log.timestamp).toLocaleTimeString(),
+            type: log.status === 'WIN' ? 'success' : log.status === 'LOSS' ? 'alert' : 'info',
+            read: false
+          }));
+          setNotifications(mapped);
+        }
+      } catch (e) {
+        console.error("Failed to fetch notifications", e);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000); // Poll every 15s
+    return () => clearInterval(interval);
+
+  }, []);
+
+  const enablePush = async () => {
+    if (pushStatus === 'unsupported') return;
+    setSubscribing(true);
+
+    try {
+      // 1. Request Permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('denied');
+        setSubscribing(false);
+        return;
+      }
+
+      setPushStatus('granted');
+
+      // 2. Register SW (ensure it is registered)
+      // Note: SW is usually registered in main.tsx or index.html, but let's ensure it.
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      // 3. Subscribe
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        console.error("Missing VAPID Key");
+        return;
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+      });
+
+      // 4. Send to Backend
+      await fetch(`${API_BASE_URL}/notifications/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription)
+      });
+
+      // Add notification
+      setNotifications(prev => [{
+        id: Date.now().toString(),
+        title: 'Notifications Enabled',
+        message: 'You will now receive alerts for new signals.',
+        time: 'Just now',
+        type: 'success',
+        read: false
+      }, ...prev]);
+
+    } catch (error) {
+      console.error("Push Error:", error);
+      // alert("Failed to enable notifications.");
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -19,9 +127,10 @@ export const NotificationCenter: React.FC = () => {
 
   return (
     <div className="relative z-50">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+        title="Notifications"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -41,7 +150,28 @@ export const NotificationCenter: React.FC = () => {
                 </button>
               )}
             </div>
-            
+
+            {/* Push Enable Banner */}
+            {pushStatus === 'default' && (
+              <div className="p-3 bg-indigo-500/10 border-b border-indigo-500/20">
+                <div className="flex items-start gap-3">
+                  <BellRing size={16} className="text-indigo-400 mt-1" />
+                  <div>
+                    <p className="text-xs text-indigo-300 font-medium mb-2">
+                      Get real-time signal alerts even when you're away.
+                    </p>
+                    <button
+                      onClick={enablePush}
+                      disabled={subscribing}
+                      className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md font-medium transition-colors w-full"
+                    >
+                      {subscribing ? 'Enabling...' : 'Enable Signal Alerts'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="max-h-[300px] overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-xs">No notifications</div>

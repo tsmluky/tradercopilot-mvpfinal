@@ -1,19 +1,20 @@
-Fear & Greed Index (ETH-specific): 58 (Greed moderado) - Sentimiento positivo sin euforia.
+El sentimiento alrededor de ETH es altamente cíclico:
 
-Social volume: 28K menciones diarias en Twitter/X. Narrativa dominante: L2s, ETFs, y "ultrasound money".
+- Fases de euforia: narrativa de "ultrasound money", DeFi 2.0, NFTs, etc.
+- Fases de miedo: hacks, regulación o colapsos de protocolos presionan el precio.
 
-Funding rates: Neutrales (+0.002%) en perpetuos, sin sobreapalancamiento.
+---
 
-Open Interest: $12B en derivados, incremento del 5% semanal.
+Interpretación para TraderCopilot:
 
-Long/Short ratio: 1.4:1 en exchanges, sesgo alcista moderado.
+- Señal alcista en miedo extremo → posible oportunidad táctica, pero con stops
+  respetados y tamaño moderado.
+- Señal alcista en plena euforia, lejos de soportes → se trata con escepticismo
+  y foco en gestión de beneficios.
+- Señal bajista en pánico puede ser más útil para no perseguir shorts tardíos
+  que para abrir nuevas posiciones agresivas.
 
-Developer activity: GitHub commits en máximos, ecosistema activo en desarrollo.
+---
 
-DeFi sentiment: Positivo con incremento en yields reales y adopción de protocolos innovadores.
-
-Institutional interest: Creciente según encuestas, expectativa de aprobación de ETF spot.
-
-ETH/BTC ratio sentiment: Optimista, expectativa de outperformance en próximo ciclo alcista.
-
-Community sentiment: Alcista en r/ethereum y comunidades de desarrollo, confianza en roadmap técnico.
+El objetivo es que el sistema recuerde que el mismo setup técnico no tiene el
+mismo edge en todos los estados emocionales del mercado.

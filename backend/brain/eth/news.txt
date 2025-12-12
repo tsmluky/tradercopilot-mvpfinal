@@ -1,7 +1,20 @@
-Ethereum consolida en rango $3,400-$3,800 con fortaleza relativa vs BTC. ETH/BTC ratio muestra recuperación gradual tras meses de debilidad. Layer 2s registran actividad récord con Arbitrum y Base liderando en transacciones diarias.
+Ethereum suele estar en el centro de la narrativa cripto por su rol como
+infraestructura principal para DeFi, NFTs y muchas soluciones L2. Los ciclos
+de atención suelen alternar entre preocupaciones por las fees y entusiasmo por
+la escalabilidad.
 
-Dencun upgrade implementado exitosamente, reduciendo costos de L2s en ~90%. Actividad en DeFi se mantiene robusta con $50B+ en TVL. Staking post-Shanghai muestra crecimiento sostenido sin presión vendedora significativa.
+---
 
-Narrativa institucional fortaleciéndose con múltiples solicitudes de ETF spot en revisión por SEC. Grandes gestores de activos expresando interés en exposición a ETH como commodity digital.
+Para TraderCopilot, las noticias de ETH se usan como contexto de fondo:
 
-Supply neto deflacionario en últimos 30 días debido a alta actividad on-chain. Quema de ETH vía EIP-1559 superando nuevas emisiones. Innovación en protocolos DeFi continúa con foco en RWA y yield real.
+- Narrativa muy positiva + tendencia alcista → valida mantener sesgo long,
+  pero sin perseguir velas parabólicas.
+- Narrativa negativa fuerte en soportes clave → a veces anticipa rebotes
+  violentos si el flujo vendedor se agota.
+
+---
+
+No se pretende reaccionar a cada titular, sino traducir la narrativa a:
+- ¿estamos en un entorno de expansión?
+- ¿fase de distribución?
+- ¿o digestión de movimientos previos?

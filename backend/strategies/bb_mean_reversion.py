@@ -74,27 +74,35 @@ class BBMeanReversionStrategy(Strategy):
         )
         d["atr"] = d["tr"].rolling(window=14).mean()
         
+        # RSI Filter
+        delta = d["close"].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        d["rsi"] = 100 - (100 / (1 + rs))
+        
         signals = []
         
         # Filtrar donde is_ranging es True
         ranging_d = d[d["is_ranging"]]
         
-        # Buscar toques de bandas
-        # Long: pct_b < 0.05
-        long_signals = ranging_d[ranging_d["pct_b"] < 0.05]
+        # Buscar toques de bandas con confirmación de RSI
+        # Long: pct_b < 0.05 AND RSI < 30 (Oversold)
+        long_signals = ranging_d[(ranging_d["pct_b"] < 0.05) & (ranging_d["rsi"] < 30)]
         
-        # Short: pct_b > 0.95
-        short_signals = ranging_d[ranging_d["pct_b"] > 0.95]
+        # Short: pct_b > 0.95 AND RSI > 70 (Overbought)
+        short_signals = ranging_d[(ranging_d["pct_b"] > 0.95) & (ranging_d["rsi"] > 70)]
         
         # Procesar Longs
         for ts, row in long_signals.iterrows():
             close = float(row["close"])
             atr = float(row["atr"]) if not pd.isna(row["atr"]) else close * 0.01
+            rsi_val = float(row["rsi"])
             
             direction = "long"
             tp = close + self.tp_atr_mult * atr
             sl = close - self.sl_atr_mult * atr
-            rationale = "Oversold in Range (Lower BB touch)"
+            rationale = f"Oversold in Range (Lower BB + RSI {rsi_val:.1f})"
             
             signal_ts = ts if isinstance(ts, datetime) else datetime.utcnow()
             
@@ -108,10 +116,10 @@ class BBMeanReversionStrategy(Strategy):
                 entry=round(close, 2),
                 tp=round(tp, 2),
                 sl=round(sl, 2),
-                confidence=0.7,
+                confidence=0.8, # Higher confidence due to RSI
                 rationale=rationale,
                 source="ENGINE",
-                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING"}
+                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING", "rsi": round(rsi_val, 1)}
             )
             signals.append(signal)
             
@@ -119,11 +127,12 @@ class BBMeanReversionStrategy(Strategy):
         for ts, row in short_signals.iterrows():
             close = float(row["close"])
             atr = float(row["atr"]) if not pd.isna(row["atr"]) else close * 0.01
+            rsi_val = float(row["rsi"])
             
             direction = "short"
             tp = close - self.tp_atr_mult * atr
             sl = close + self.sl_atr_mult * atr
-            rationale = "Overbought in Range (Upper BB touch)"
+            rationale = f"Overbought in Range (Upper BB + RSI {rsi_val:.1f})"
             
             signal_ts = ts if isinstance(ts, datetime) else datetime.utcnow()
             
@@ -137,10 +146,10 @@ class BBMeanReversionStrategy(Strategy):
                 entry=round(close, 2),
                 tp=round(tp, 2),
                 sl=round(sl, 2),
-                confidence=0.7,
+                confidence=0.8,
                 rationale=rationale,
                 source="ENGINE",
-                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING"}
+                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING", "rsi": round(rsi_val, 1)}
             )
             signals.append(signal)
             
@@ -159,7 +168,7 @@ class BBMeanReversionStrategy(Strategy):
                     raw_data = context["data"][token]
                     df = pd.DataFrame(raw_data) if isinstance(raw_data, list) else raw_data
                 else:
-                    ohlcv = get_ohlcv_data(token, timeframe, limit=300)
+                    ohlcv = get_ohlcv_data(token, timeframe, limit=1000)
                     if not ohlcv: continue
                     df = pd.DataFrame(ohlcv)
                 

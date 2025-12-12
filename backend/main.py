@@ -22,6 +22,8 @@ from pydantic import BaseModel
 from core.schemas import Signal
 from core.signal_logger import log_signal, signal_from_dict
 
+# === 2c. RAG Context ===
+from rag_context import build_token_context
 
 # ==== 3. FastAPI App ====
 app = FastAPI(
@@ -86,7 +88,16 @@ async def startup():
 
 # ==== Routers ====
 from routers.strategies import router as strategies_router
+from routers.logs import router as logs_router
+from routers.notifications import router as notifications_router
+from routers.advisor import router as advisor_router
+from routers.backtest import router as backtest_router
+
 app.include_router(strategies_router)
+app.include_router(logs_router)
+app.include_router(notifications_router)
+app.include_router(advisor_router)
+app.include_router(backtest_router)
 
 
 # ==== 4. Configuración global ====
@@ -164,8 +175,6 @@ def save_strict_log(mode: str, data: Dict[str, Any]) -> None:
         except Exception as db_err:
             print(f"[DB] ❌ Error CRÍTICO al guardar en DB: {db_err}")
             db.rollback()
-            # No relanzamos para que al menos se guarde en CSV y no rompa el flow
-            # raise 
         finally:
             db.close()
     except Exception as e:
@@ -326,39 +335,92 @@ def _build_lite_from_market(token: str, timeframe: str, market: Dict[str, Any]) 
     return lite, indicators
 
 
-# ==== 7. Capa RAG básica para PRO ====
+# ==== 7. Capa RAG básica (vía rag_context) ====
+
 
 def _load_brain_context(token: str) -> Dict[str, str]:
     """
-    Carga el contexto desde brain/{token}/{insights.md,news.txt,onchain.txt,sentiment.txt}.
+    Wrapper sobre build_token_context(token) para mantener compatibilidad
+    con el resto del código PRO.
 
-    Si un archivo no existe, devuelve cadena vacía para esa clave.
+    Devuelve al menos las claves:
+    - insights
+    - news
+    - onchain
+    - sentiment
+    - snapshot
+    - raw_context
     """
-    # backend/ → brain/ está un nivel arriba
-    root_brain = os.path.abspath(os.path.join(current_dir, "..", "brain"))
-    token_dir = os.path.join(root_brain, token.lower())
-
-    files = {
-        "insights": "insights.md",
-        "news": "news.txt",
-        "onchain": "onchain.txt",
-        "sentiment": "sentiment.txt",
+    token_ctx = build_token_context(token)
+    return {
+        "insights": token_ctx.get("insights", "") or "",
+        "news": token_ctx.get("news", "") or "",
+        "onchain": token_ctx.get("onchain", "") or "",
+        "sentiment": token_ctx.get("sentiment", "") or "",
+        "snapshot": token_ctx.get("snapshot", "") or "",
+        "raw_context": token_ctx.get("raw_context", "") or "",
     }
 
-    ctx: Dict[str, str] = {}
-    for key, fname in files.items():
-        path = os.path.join(token_dir, fname)
-        if os.path.exists(path):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    ctx[key] = f.read().strip()
-            except Exception:
-                ctx[key] = ""
-        else:
-            ctx[key] = ""
 
-    return ctx
+def _inject_rag_into_lite_rationale(
+    token: str,
+    timeframe: str,
+    lite: LiteSignal,
+    market: Dict[str, Any],
+) -> str:
+    """
+    Ajusta la rationale de LITE combinando:
+    - Texto base de la regla (lite-rule@v2).
+    - Comentario simple sobre el entorno 24h.
+    - Una frase corta de contexto RAG (sentiment/news) sin recortes agresivos.
 
+    Importante: NO recorta por longitud más allá de lo que la UI soporte.
+    """
+    base = (lite.rationale or "").strip()
+    extra_parts: List[str] = []
+
+    # 1) Ajuste por cambio 24h
+    change_24h = market.get("price_change_24h")
+    if isinstance(change_24h, (int, float)):
+        ch = round(change_24h, 2)
+        if ch <= -5 and lite.direction == "long":
+            extra_parts.append("24h en fuerte caída; usar tamaño de posición conservador.")
+        elif ch >= 5 and lite.direction == "short":
+            extra_parts.append("24h muy alcistas; evitar shorts agresivos.")
+        elif abs(ch) >= 4:
+            extra_parts.append("Entorno 24h volátil; gestionar bien el riesgo.")
+
+    # 2) Frase de contexto desde RAG
+    try:
+        brain = _load_brain_context(token)
+        raw_sentiment = (brain.get("sentiment") or "").strip()
+        raw_news = (brain.get("news") or "").strip()
+
+        raw = raw_sentiment or raw_news
+
+        tagline = None
+        if raw:
+            for line in raw.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                tagline = line.lstrip("# ").strip()
+                break
+
+        if tagline:
+            # Si acaba en ":" (porque en el .md sigue una lista), lo dejamos tal cual.
+            extra_parts.append(f"Ctx: {tagline}")
+    except Exception:
+        # No queremos que un fallo de RAG rompa la señal LITE
+        pass
+
+    combined = base
+    if extra_parts:
+        if not combined.endswith("."):
+            combined += "."
+        combined += " " + " ".join(extra_parts)
+
+    return combined
 
 def _build_pro_markdown(
     req: ProReq,
@@ -372,7 +434,7 @@ def _build_pro_markdown(
 
     - Meta (token, timeframe, user_message)
     - Señal LITE sugerida (sesgo, niveles)
-    - Contexto RAG (insights, news, onchain, sentiment)
+    - Contexto RAG (insights, news, onchain, sentiment, snapshot)
     """
 
     token_up = lite.token
@@ -387,6 +449,7 @@ def _build_pro_markdown(
     news = brain.get("news", "").strip()
     onchain = brain.get("onchain", "").strip()
     sentiment_txt = brain.get("sentiment", "").strip()
+    snapshot = brain.get("snapshot", "").strip()
 
     if not insights:
         insights = "Sin insights específicos cargados en brain todavía."
@@ -410,6 +473,8 @@ def _build_pro_markdown(
         f"- RSI aproximado: {rsi_str}",
         f"- EMA21: {ema21_str}",
     ]
+    if snapshot:
+        ctxt_lines.append(f"- Snapshot mercado: {snapshot}")
     ctxt_block = "\n".join(ctxt_lines)
 
     # Plan operativo básico basado en la señal LITE
@@ -441,19 +506,14 @@ def _build_pro_markdown(
         f"- sl_hint: {lite.sl}",
         f"- lite_confidence: {lite.confidence}",
         "- mode: PRO_v1_local",
-        "- rag_sources: insights, news, onchain, sentiment",
+        "- rag_sources: insights, news, onchain, sentiment, snapshot",
     ]
     params_block = "\n".join(params_lines)
 
     # Generate rich, detailed analysis
     markdown = f"""#ANALYSIS_START
 #CTXT#
-- Token: {token_up}
-- Timeframe: {tf}
-- Dirección LITE sugerida: {lite.direction}
-- Entrada LITE: {lite.entry} | TP: {lite.tp} | SL: {lite.sl}
-- RSI aproximado: {rsi_str}
-- EMA21: {ema21_str}
+{ctxt_block}
 - Trend cuantizado: {trend}
 - Confidence LITE: {lite.confidence}
 
@@ -462,7 +522,7 @@ def _build_pro_markdown(
 Precio actual alrededor de {lite.entry}. La señal LITE sugiere un sesgo **{lite.direction.upper()}** con una estructura de TP/SL ya cuantificada basada en nuestro algoritmo propietario (lite-rule@v2).
 
 **Estructura de Mercado:**
-El precio se encuentra {'por encima' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'por debajo'} de la EMA21 ({ema21_str}), lo que confirma la tendencia {trend.lower()} en el timeframe actual. La acción del precio muestra {'momentum alcista sostenido' if lite.direction == 'long' else 'presión bajista consistente'} con volumen {'creciente' if rsi < 50 else 'decreciente'}.
+El precio se encuentra {'por encima' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'por debajo'} de la EMA21 ({ema21_str}), lo que ayuda a contextualizar la tendencia {trend.lower()} en el timeframe actual. La acción del precio muestra {'momentum alcista sostenido' if lite.direction == 'long' else 'presión bajista consistente'} con volumen {'creciente' if rsi < 50 else 'decreciente'}.
 
 **Indicadores Técnicos Detallados:**
 - **RSI (14):** {rsi_str} - {'Zona de sobreventa, potencial rebote técnico' if isinstance(rsi, (int, float)) and rsi < 30 else 'Zona de sobrecompra, posible corrección' if isinstance(rsi, (int, float)) and rsi > 70 else 'Zona neutral, momentum en construcción'}
@@ -497,7 +557,7 @@ Funding rates en perpetuos: {'Positivo (+0.01%)' if lite.direction == 'long' els
 
 **Métricas de Red:**
 - Direcciones activas (24h): {'Incremento del 8%' if lite.direction == 'long' else 'Descenso del 5%'}
-- Flujo neto de exchanges: {'Salidas netas de -2,500 {token_up}' if lite.direction == 'long' else 'Entradas netas de +1,800 {token_up}'}
+- Flujo neto de exchanges: {'Salidas netas de -2,500' if lite.direction == 'long' else 'Entradas netas de +1,800'}
 - Actividad de ballenas: {'3 transacciones >$1M detectadas (acumulación)' if lite.direction == 'long' else '2 transacciones >$1M detectadas (distribución)'}
 - Supply en exchanges: {'Mínimo de 30 días' if lite.direction == 'long' else 'Máximo de 30 días'}
 
@@ -533,6 +593,9 @@ Funding rates en perpetuos: {'Positivo (+0.01%)' if lite.direction == 'long' els
 
 #INSIGHT#
 **Contexto Fundamental y Narrativo (RAG):**
+
+**Snapshot en tiempo real:**
+{snapshot if snapshot else "No disponible en este momento."}
 
 **Insights Locales:**
 {insights}
@@ -703,13 +766,38 @@ async def get_logs(mode: str, token: str):
 
     return {"count": len(final_logs), "logs": final_logs}
 
+# ==== 9. Endpoint Evaluacion ====
+
+@app.post("/analyze/evaluate")
+def trigger_evaluation():
+    """
+    Ejecuta el proceso de evaluación de señales bajo demanda.
+    Revisa todas las señales LITE pendientes y verifica si tocaron TP/SL.
+    """
+    try:
+        from evaluated_logger import evaluate_all_tokens
+        tokens_count, new_evals = evaluate_all_tokens()
+        return {
+            "status": "ok",
+            "tokens_processed": tokens_count,
+            "new_evaluations": new_evals,
+            "message": f"Evaluated {new_evals} new signals across {tokens_count} tokens."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
+
+
 # ==== 9. Endpoint LITE ====
 
 @app.post("/analyze/lite")
 def analyze_lite(req: LiteReq):
     """
     Genera una señal LITE para un token/timeframe, usando la lógica LITE v2 adaptada
-    a contratos oficiales.
+    a contratos oficiales, enriquecida con:
+
+    - Contexto RAG básico desde brain/{token}/
+    - Snapshot cuantitativo de mercado (precio + variación 24h si está disponible)
+    - Rotación ligera de snippets para evitar sensación de texto repetido
 
     Ahora usa el schema Signal unificado del Signal Hub.
 
@@ -728,7 +816,63 @@ def analyze_lite(req: LiteReq):
     # 2) Construcción de señal LITE (modelo Pydantic + validación)
     lite_signal, indicators = _build_lite_from_market(token, tf, market)
 
-    # 3) Crear instancia de Signal unificado
+    # 3) Capa RAG básica (enriquecimiento de contexto para Lite)
+    brain_ctx = _load_brain_context(token)
+
+    sentiment_txt = brain_ctx.get("sentiment", "").strip()
+    insights_txt = brain_ctx.get("insights", "").strip()
+    news_txt = brain_ctx.get("news", "").strip()
+    onchain_txt = brain_ctx.get("onchain", "").strip()
+
+    # 3.1) Snapshot simple de mercado usando la misma capa Quant
+    snapshot = ""
+    try:
+        price_now = float(market.get("price"))
+        ch24 = market.get("change_24h")
+        if ch24 is not None:
+            snapshot = f"{lite_signal.token} = {price_now:.2f} USD · 24h: {float(ch24):.2f}%"
+        else:
+            snapshot = f"{lite_signal.token} = {price_now:.2f} USD"
+    except Exception:
+        snapshot = ""
+
+    # 3.2) Selección ligera / rotación de snippets para evitar sensación de "copypaste"
+    context_snippets: List[str] = []
+    if snapshot:
+        context_snippets.append(f"Snapshot mercado: {snapshot}.")
+    if sentiment_txt:
+        context_snippets.append(sentiment_txt.splitlines()[0])
+    if insights_txt:
+        context_snippets.append(insights_txt.splitlines()[0])
+    if news_txt:
+        context_snippets.append(news_txt.splitlines()[0])
+
+    if context_snippets:
+        import random
+        extra_context = random.choice(context_snippets).strip()
+        lite_signal.rationale = f"{lite_signal.rationale} | Ctx: {extra_context}"
+        # Reaplicar límite duro de 240 caracteres
+        if len(lite_signal.rationale) > 240:
+            lite_signal.rationale = lite_signal.rationale[:237] + "..."
+
+    # 3.3) Adjuntar metadatos RAG a los indicadores (para UI / debugging)
+    indicators["rag"] = {
+        "snapshot": snapshot,
+        "has_sentiment": bool(sentiment_txt),
+        "has_insights": bool(insights_txt),
+        "has_news": bool(news_txt),
+        "has_onchain": bool(onchain_txt),
+        "sources_used": [
+            key for key, value in {
+                "insights": insights_txt,
+                "news": news_txt,
+                "onchain": onchain_txt,
+                "sentiment": sentiment_txt,
+            }.items() if value
+        ],
+    }
+
+    # 4) Crear instancia de Signal unificado
     unified_signal = Signal(
         timestamp=lite_signal.timestamp,
         strategy_id="lite_v2",  # ID de la estrategia
@@ -743,14 +887,14 @@ def analyze_lite(req: LiteReq):
         rationale=lite_signal.rationale,
         source=lite_signal.source,
         extra={
-            "indicators": indicators  # Metadatos adicionales
+            "indicators": indicators  # Metadatos adicionales (incluyendo RAG)
         }
     )
 
-    # 4) Guardar usando el logger unificado
+    # 5) Guardar usando el logger unificado
     log_signal(unified_signal)
 
-    # 5) Respuesta (base LITE + indicadores extra para UI)
+    # 6) Respuesta (base LITE + indicadores extra para UI)
     response = lite_signal.model_dump()
     response["indicators"] = indicators
     return response
@@ -765,7 +909,7 @@ def analyze_pro(req: ProReq):
     combinando:
 
     - Señal LITE sugerida (sesgo + niveles)
-    - Contexto RAG desde brain/{token}/
+    - Contexto RAG desde brain/{token}/ vía rag_context.build_token_context
     - Mensaje opcional del usuario (user_message)
 
     Ahora usa el schema Signal unificado del Signal Hub.
@@ -785,7 +929,7 @@ def analyze_pro(req: ProReq):
     # 2) Señal LITE interna como "ancla" táctica
     lite_signal, indicators = _build_lite_from_market(token, tf, market)
 
-    # 3) Contexto RAG
+    # 3) Contexto RAG (wrapper sobre rag_context)
     brain_ctx = _load_brain_context(token)
 
     # 4) Markdown PRO
@@ -962,8 +1106,6 @@ def notify_telegram(msg: TelegramMsg):
     """
     Envía una notificación a Telegram (simulado por ahora).
     """
-    # Aquí iría la lógica real con requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", ...)
-    # Por ahora solo logueamos en consola
     print(f"[TELEGRAM] Sending message: {msg.text}")
     return {"status": "ok", "sent": True}
 
@@ -1165,3 +1307,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         "error": str(exc),
         "message": "Unexpected server error."
     }
+
+
+
+
+
+
+
+
+

@@ -1,23 +1,18 @@
-Direcciones activas: 1.2M direcciones activas diarias, incremento del 45% en 3 meses.
+En Solana, el "on-chain" se observa en:
 
-Exchange netflow: Salidas netas de -450K SOL en última semana, fuerte acumulación.
+- Actividad en DEXs y protocolos DeFi del ecosistema.
+- Explosiones de volumen asociadas a memecoins y trading especulativo.
+- Cambios en la distribución de SOL entre grandes wallets y proyectos.
 
-Whale activity: 18 transacciones >$2M en 24h, principalmente exchange-to-wallet (acumulación).
+---
 
-Supply en exchanges: 22M SOL (~5.5% del supply circulante), mínimo histórico.
+Para este MVP:
 
-Staked SOL: 385M SOL stakeados (~65% del supply total), uno de los ratios más altos en PoS.
+- El contexto on-chain se usa de forma conceptual, no como señal directa.
+- Sirve para diferenciar entre caídas normales tras rallies especulativos
+  y problemas más estructurales de confianza o liquidez.
 
-Transaction volume: 3,500 TPS promedio, picos de 7,000+ TPS en momentos de alta actividad.
+---
 
-NFT mints: 2M+ NFTs minteados en última semana, liderando en actividad NFT.
-
-DeFi activity: $2.8B en TVL, incremento del 35% mensual.
-
-DEX volume: $15B en volumen mensual, Jupiter liderando con $8B.
-
-Validator count: 1,850+ validadores activos, mejorando descentralización.
-
-Program deployments: 450+ nuevos programas desplegados en último mes.
-
-Fees burned: $2.5M en fees quemados semanalmente, indicando alta utilización de red.
+El analista debe ser consciente de que un mismo patrón técnico puede tener
+riesgos muy distintos si el flujo subyacente es puramente especulativo.

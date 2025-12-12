@@ -1,23 +1,19 @@
-Fear & Greed Index (SOL-specific): 72 (Greed) - Sentimiento muy positivo, momentum fuerte.
+El sentimiento en Solana suele ser binario:
 
-Social volume: 35K+ menciones diarias en Twitter/X, trending regularmente. Narrativa: "Solana Summer 2.0", mobile, payments.
+- Fases de euforia extrema cuando el ecosistema está "de moda".
+- Fases de rechazo duro cuando aparecen problemas técnicos o narrativos.
 
-Funding rates: Positivos (+0.015%) en perpetuos, sesgo alcista con apalancamiento moderado.
+---
 
-Open Interest: $2.8B en derivados, incremento del 25% mensual.
+Interpretación en TraderCopilot:
 
-Long/Short ratio: 2.1:1 en exchanges, fuerte sesgo alcista.
+- Señales alcistas en euforia → gestión de riesgo agresiva, no persecución ciega.
+- Señales alcistas en apatía o rechazo, con estructura técnica de acumulación,
+  pueden ofrecer los mejores puntos de entrada.
+- Señales bajistas en capitulación se usan más para reducir exposición que
+  para buscar shorts sin un setup muy definido.
 
-Developer sentiment: Muy positivo, hackathons con participación récord.
+---
 
-Community engagement: Extremadamente activo en Twitter, Discord, Reddit. Comunidad resiliente post-FTX.
-
-Retail adoption: Creciente, Phantom wallet con 3M+ usuarios activos mensuales.
-
-Institutional interest: Incrementando, múltiples VCs anunciando fondos específicos para Solana.
-
-NFT community: Muy activo, cultura única de "Solana NFTs" con proyectos innovadores.
-
-Mobile narrative: Entusiasmo por Solana Mobile Stack y Saga phones.
-
-Meme coin activity: Alta, indicador de participación retail y especulación.
+El objetivo es que las señales no se interpreten aisladas de la temperatura
+emocional del mercado alrededor de SOL.

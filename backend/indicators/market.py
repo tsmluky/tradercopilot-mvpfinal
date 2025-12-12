@@ -11,7 +11,10 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from market_data_api import get_ohlcv_data
 
-def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 100):
+# Exchange ID for data source (used by evaluator)
+EXCHANGE_ID = "binance"
+
+def get_market_data(symbol: str, timeframe: str = "1h", limit: int = 1000):
     """
     Descarga OHLCV y calcula indicadores técnicos base.
     Retorna: (dataframe, dict_resumen_actual)

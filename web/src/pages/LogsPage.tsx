@@ -1,260 +1,342 @@
-import React, { useEffect, useState } from 'react';
-import { FileText, Download, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
-import { api } from '../services/api';
-import { AnalysisMode, LogRow } from '../types';
-import { TOKENS } from '../constants';
-import { notificationService } from '../services/notification';
+import React, { useEffect, useState } from "react";
+import { fetchLogs, getSignalEvaluation } from "../services/api";
+import type { LogRow, SignalEvaluation } from "../types";
+
+type Mode = "LITE" | "PRO" | "ADVISOR";
+
+const TOKENS = ["ETH", "BTC", "SOL"] as const;
+
+type RowWithEval = {
+  row: LogRow;
+  evaluation?: SignalEvaluation | null;
+  evaluationLoading?: boolean;
+  evaluationError?: string | null;
+};
 
 export const LogsPage: React.FC = () => {
-  const [mode, setMode] = useState<string>(AnalysisMode.EVALUATED);
-  const [token, setToken] = useState<string>('all');
-  const [logs, setLogs] = useState<LogRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<Mode>("LITE");
+  const [token, setToken] = useState<string>("ETH");
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      let data: LogRow[] = [];
+  const [rows, setRows] = useState<RowWithEval[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-      if (token === 'all') {
-        // Fetch logs for all tokens and merge
-        const fetchPromises = TOKENS.map(t =>
-          api.fetchLogs(mode, t.id).catch(err => {
-            console.error(`Failed to fetch logs for ${t.id}`, err);
-            return [];
-          })
-        );
-        const results = await Promise.all(fetchPromises);
-        data = results.flat();
-      } else {
-        // Fetch for specific token
-        data = await api.fetchLogs(mode, token);
-      }
-
-      setLogs(data);
-    } catch (e) {
-      console.error('Failed to fetch logs', e);
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Carga inicial
   useEffect(() => {
-    fetchLogs();
+    loadLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, token]);
 
-  // Deduplicate logs by creating a unique key per signal
-  const deduplicatedLogs = React.useMemo(() => {
-    const seen = new Set<string>();
-    return logs.filter(log => {
-      // Create unique key using timestamp, token, direction, and entry
-      const key = `${log.timestamp || log.signal_ts}_${log.token}_${log.direction}_${log.entry} `;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }, [logs]);
-
-  const filteredLogs = deduplicatedLogs
-    .filter((log) => {
-      if (token === 'all') return true;
-      return log.token?.toString().toLowerCase() === token.toLowerCase();
-    })
-    .sort((a, b) => {
-      const ta = new Date(
-        (a.evaluated_at as string) || (a.timestamp as string) || 0
-      ).getTime();
-      const tb = new Date(
-        (b.evaluated_at as string) || (b.timestamp as string) || 0
-      ).getTime();
-      return tb - ta;
-    });
-
-  const headers =
-    filteredLogs.length > 0
-      ? Object.keys(filteredLogs[0])
-      : logs.length > 0
-        ? Object.keys(logs[0])
-        : [];
-
-  const handleClearLogs = () => {
-    if (window.confirm('Are you sure you want to clear all visible logs? This action cannot be undone.')) {
-      setLogs([]);
-      notificationService.notify('Logs Cleared', 'All visible logs have been removed from the view.', 'success');
+  async function loadLogs() {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchLogs(mode, token);
+      // Ordenamos por timestamp descendente si existe
+      const sorted = [...data].sort((a, b) => {
+        const ta = getField(a, "timestamp") || getField(a, "signal_ts") || "";
+        const tb = getField(b, "timestamp") || getField(b, "signal_ts") || "";
+        return ta < tb ? 1 : ta > tb ? -1 : 0;
+      });
+      setRows(sorted.map((row) => ({ row })));
+    } catch (err: any) {
+      console.error("Error loading logs", err);
+      setError(err?.message ?? "Error loading logs");
+      setRows([]);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
+
+  function getField(row: LogRow, key: string, fallback: string = ""): string {
+    const v = row[key];
+    if (v === undefined || v === null) return fallback;
+    return String(v);
+  }
+
+  function getTimestamp(row: LogRow): string {
+    return (
+      (row["signal_ts"] as string) ||
+      (row["timestamp"] as string) ||
+      (row["time"] as string) ||
+      ""
+    );
+  }
+
+  function formatNumber(v: string | number | undefined, decimals: number = 2): string {
+    if (v === undefined || v === null || v === "") return "-";
+    const n = typeof v === "number" ? v : Number(v);
+    if (Number.isNaN(n)) return String(v);
+    return n.toFixed(decimals);
+  }
+
+  function evaluationBadge(evalObj?: SignalEvaluation | null) {
+    if (!evalObj) return <span className="text-xs text-slate-500">Pending</span>;
+
+    let color = "bg-slate-800 text-slate-100 border-slate-700";
+    let label = "BE";
+    if (evalObj.status === "WIN") {
+      color = "bg-emerald-500/10 text-emerald-300 border-emerald-500/40";
+      label = "WIN";
+    } else if (evalObj.status === "LOSS") {
+      color = "bg-rose-500/10 text-rose-300 border-rose-500/40";
+      label = "LOSS";
+    }
+
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}
+      >
+        {label} · {(evalObj.pnl_r * 100).toFixed(1)}%
+      </span>
+    );
+  }
+
+  async function handleCheckEvaluation(index: number) {
+    setRows((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, evaluationLoading: true, evaluationError: null } : item
+      )
+    );
+
+    try {
+      const target = rows[index];
+      const ts = getTimestamp(target.row);
+      if (!ts) throw new Error("No timestamp for this signal");
+
+      const evalRes = await getSignalEvaluation(token, ts);
+
+      if (!evalRes) {
+        // No hay evaluación para esta señal
+        setRows((prev) =>
+          prev.map((item, i) =>
+            i === index
+              ? {
+                  ...item,
+                  evaluation: null,
+                  evaluationLoading: false,
+                  evaluationError: "No evaluation found yet for this signal",
+                }
+              : item
+          )
+        );
+      } else {
+        setRows((prev) =>
+          prev.map((item, i) =>
+            i === index
+              ? {
+                  ...item,
+                  evaluation: evalRes,
+                  evaluationLoading: false,
+                  evaluationError: null,
+                }
+              : item
+          )
+        );
+      }
+    } catch (err: any) {
+      console.error("Error getting evaluation", err);
+      setRows((prev) =>
+        prev.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                evaluationLoading: false,
+                evaluationError: err?.message ?? "Error getting evaluation",
+              }
+            : item
+        )
+      );
+    }
+  }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <FileText className="text-emerald-400" /> System Logs
-          </h1>
-          <p className="text-slate-400 text-sm">
-            Raw audit trails from backend CSV/JSON records.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3 items-center bg-slate-900 p-2 rounded-lg border border-slate-800">
-          <select
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            className="bg-slate-800 text-white text-sm rounded px-3 py-1.5 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none font-mono uppercase"
-          >
-            <option value="all">ALL ASSETS</option>
-            {TOKENS.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.symbol}
-              </option>
-            ))}
-          </select>
-
-          <span className="text-slate-600">/</span>
-
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="bg-slate-800 text-white text-sm rounded px-3 py-1.5 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none font-mono uppercase"
-          >
-            {Object.values(AnalysisMode).map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={fetchLogs}
-            className="ml-2 p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold text-slate-50">Signals History</h1>
+        <p className="text-slate-400 text-sm">
+          Review generated signals by mode and token. For LITE signals you can also check
+          automatic evaluation (WIN / LOSS / BE) when available.
+        </p>
       </div>
 
-      <div className="flex-1 bg-slate-900 rounded-xl border border-slate-800 shadow-lg overflow-hidden flex flex-col">
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center text-slate-500">
-            <RefreshCw className="animate-spin mr-2" /> Loading logs...
+      {/* Controls */}
+      <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-3">
+          {/* Mode toggle */}
+          <div className="flex gap-2">
+            {(["LITE", "PRO", "ADVISOR"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition
+                  ${
+                    mode === m
+                      ? "bg-indigo-500 text-white border-indigo-400 shadow"
+                      : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"
+                  }`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-12">
-            <AlertCircle size={48} className="mb-4 opacity-20" />
-            <p>
-              No logs found for {mode}/
-              {token === 'all' ? 'ALL' : token.toUpperCase()}
-            </p>
+
+          {/* Token select */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 uppercase tracking-wide">Token</span>
+            <select
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className="bg-slate-950/80 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              {TOKENS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
+
+          {/* Reload */}
+          <div className="flex items-center ml-auto">
+            <button
+              type="button"
+              onClick={loadLogs}
+              disabled={isLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-100 border border-slate-600 hover:bg-slate-700 disabled:opacity-60"
+            >
+              {isLoading ? "Loading..." : "Reload"}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="text-sm text-red-400 bg-red-950/40 border border-red-900 rounded-lg px-3 py-2">
+            {error}
+          </div>
+        )}
+      </div>
+
+      {/* Table / list */}
+      <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
+        {isLoading && rows.length === 0 && (
+          <p className="text-sm text-slate-400">Loading logs...</p>
+        )}
+
+        {!isLoading && rows.length === 0 && !error && (
+          <p className="text-sm text-slate-500">No logs found for this mode/token.</p>
+        )}
+
+        {rows.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-slate-100">
               <thead>
-                <tr className="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
-                  {headers.map((h) => (
-                    <th key={h} className="p-4 font-mono font-bold">
-                      {h.replace(/_/g, ' ')}
-                    </th>
-                  ))}
+                <tr className="border-b border-slate-800 text-xs text-slate-400 uppercase">
+                  <th className="text-left py-2 pr-3">Time</th>
+                  <th className="text-left py-2 pr-3">Mode</th>
+                  <th className="text-left py-2 pr-3">Direction</th>
+                  <th className="text-left py-2 pr-3">TF</th>
+                  <th className="text-left py-2 pr-3">Entry</th>
+                  <th className="text-left py-2 pr-3">TP</th>
+                  <th className="text-left py-2 pr-3">SL</th>
+                  {mode === "LITE" && <th className="text-left py-2 pr-3">Eval</th>}
+                  <th className="text-left py-2 pr-3">Notes</th>
+                  {mode === "LITE" && <th className="py-2 pr-3" />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50 text-sm font-mono text-slate-300">
-                {filteredLogs.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className="hover:bg-slate-800/30 transition-colors"
-                  >
-                    {headers.map((h) => {
-                      const val = row[h];
-                      const strVal = val != null ? String(val) : '';
-                      let colorClass = 'text-slate-300';
+              <tbody>
+                {rows.map((item, index) => {
+                  const { row, evaluation, evaluationLoading, evaluationError } = item;
+                  const ts = getTimestamp(row);
+                  const tf =
+                    getField(row, "timeframe") ||
+                    getField(row, "tf") ||
+                    getField(row, "frame");
+                  const dir =
+                    getField(row, "direction") ||
+                    getField(row, "side") ||
+                    getField(row, "signal_direction");
+                  const entry = getField(row, "entry");
+                  const tp = getField(row, "tp");
+                  const sl = getField(row, "sl");
+                  const note =
+                    getField(row, "reason") ||
+                    getField(row, "rationale") ||
+                    getField(row, "comment");
 
-                      if (h === 'result') {
-                        if (strVal.includes('WIN') || strVal.includes('TP')) {
-                          colorClass = 'text-emerald-400 font-bold';
-                        } else if (
-                          strVal.includes('LOSS') ||
-                          strVal.includes('SL')
-                        ) {
-                          colorClass = 'text-rose-400 font-bold';
-                        }
-                      }
+                  return (
+                    <tr key={index} className="border-b border-slate-800/60 last:border-none">
+                      <td className="py-2 pr-3 align-top text-xs text-slate-300">
+                        {ts ? new Date(ts).toLocaleString() : "-"}
+                      </td>
+                      <td className="py-2 pr-3 align-top text-xs text-slate-400">{mode}</td>
+                      <td className="py-2 pr-3 align-top text-xs">
+                        {dir ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${
+                              dir.toLowerCase() === "long"
+                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
+                                : dir.toLowerCase() === "short"
+                                ? "bg-rose-500/10 text-rose-300 border-rose-500/40"
+                                : "bg-slate-800 text-slate-100 border-slate-700"
+                            }`}
+                          >
+                            {dir.toUpperCase()}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-2 pr-3 align-top text-xs text-slate-300">
+                        {tf || "-"}
+                      </td>
+                      <td className="py-2 pr-3 align-top text-xs text-slate-100">
+                        {formatNumber(entry)}
+                      </td>
+                      <td className="py-2 pr-3 align-top text-xs text-emerald-300">
+                        {formatNumber(tp)}
+                      </td>
+                      <td className="py-2 pr-3 align-top text-xs text-rose-300">
+                        {formatNumber(sl)}
+                      </td>
 
-                      if (h === 'move_pct') {
-                        if (strVal.startsWith('+'))
-                          colorClass = 'text-emerald-400';
-                        if (strVal.startsWith('-'))
-                          colorClass = 'text-rose-400';
-                      }
-
-                      if (h === 'direction') {
-                        if (strVal.toLowerCase() === 'long')
-                          colorClass = 'text-emerald-400 uppercase';
-                        if (strVal.toLowerCase() === 'short')
-                          colorClass = 'text-rose-400 uppercase';
-                      }
-
-                      return (
-                        <td key={h} className={`p - 4 ${colorClass} `}>
-                          {h === 'timestamp' || h === 'evaluated_at' || h === 'signal_ts' ? (
-                            <div className="flex items-center gap-2 group cursor-help" title={new Date(strVal).toLocaleString()}>
-                              <div className="flex flex-col">
-                                <span className="text-slate-200 font-bold text-xs">
-                                  {(() => {
-                                    const date = new Date(strVal);
-                                    const now = new Date();
-                                    const diff = (now.getTime() - date.getTime()) / 1000;
-
-                                    if (diff < 60) return 'Just now';
-                                    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-                                    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-                                    return `${Math.floor(diff / 86400)}d ago`;
-                                  })()}
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-mono">
-                                  {new Date(strVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            </div>
+                      {mode === "LITE" && (
+                        <td className="py-2 pr-3 align-top text-xs">
+                          {evaluationError ? (
+                            <span className="text-red-400">{evaluationError}</span>
+                          ) : evaluationLoading ? (
+                            <span className="text-slate-400">Checking...</span>
                           ) : (
-                            strVal
+                            evaluationBadge(evaluation)
                           )}
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      )}
+
+                      <td className="py-2 pr-3 align-top text-xs text-slate-300 max-w-xs">
+                        <div className="line-clamp-2">{note || "-"}</div>
+                      </td>
+
+                      {mode === "LITE" && (
+                        <td className="py-2 pr-3 align-top text-xs text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleCheckEvaluation(index)}
+                            disabled={evaluationLoading}
+                            className="px-2 py-1 rounded-md border border-slate-600 bg-slate-800 text-[11px] text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+                          >
+                            Check
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-
-        <div className="p-4 border-t border-slate-800 bg-slate-900 flex justify-between items-center">
-          <span className="text-xs text-slate-500 font-mono">
-            {filteredLogs.length} signal{filteredLogs.length !== 1 ? 's' : ''} displayed
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={handleClearLogs}
-              className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-rose-400 uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Clear all visible logs"
-              disabled={filteredLogs.length === 0}
-            >
-              <Trash2 size={14} /> Clear Logs
-            </button>
-            <button
-              className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-emerald-400 uppercase tracking-wider cursor-not-allowed"
-              title="CSV download planned for next version"
-              disabled
-            >
-              <Download size={14} /> Download CSV
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

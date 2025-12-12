@@ -142,6 +142,7 @@ def _write_to_db(signal: Signal, mode: str) -> None:
             mode=mode,
             # raw_response podría guardar el campo 'extra' si necesitamos trazabilidad
             raw_response=str(signal.extra) if signal.extra else None,
+            strategy_id=signal.strategy_id,
         )
 
         db = SessionLocal()
@@ -150,6 +151,21 @@ def _write_to_db(signal: Signal, mode: str) -> None:
             db.commit()
             ts_str = signal.timestamp.replace(microsecond=0).isoformat() + "Z"
             print(f"[DB] ✅ Señal guardada en DB: {mode} - {signal.token} - {ts_str}")
+            
+            # --- NOTIFICACIÓN PUSH ---
+            try:
+                from notify import send_push_notification
+                title = f"New Signal: {signal.direction.upper()} {signal.token}"
+                body = f"Entry: {signal.entry} | TP: {signal.tp} | SL: {signal.sl}\nStrategy: {signal.strategy_id or 'Unknown'}"
+                res = send_push_notification(title, body, data={"token": signal.token, "type": "signal"})
+                if res.get("success", 0) > 0:
+                    print(f"[PUSH] 🔔 Notificación enviada a {res['success']} dispositivos.")
+                elif res.get("failed", 0) > 0:
+                    print(f"[PUSH] ⚠️ Fallo al enviar notificaciones ({res['failed']} fallidos).")
+            except Exception as push_err:
+                print(f"[PUSH] ❌ Error enviando push: {push_err}")
+            # -------------------------
+
         except Exception as db_err:
             print(f"[DB] ❌ Error CRÍTICO al guardar en DB: {db_err}")
             db.rollback()
