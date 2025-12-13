@@ -1,4 +1,4 @@
-// SMART URL DETECTION
+// SMART URL DETECTION - Forced Update 11:08
 const getBaseUrl = () => {
   // 1. If Vercel/Build Env Var is explicitly set, use it.
   if ((import.meta as any).env?.VITE_API_BASE_URL) {

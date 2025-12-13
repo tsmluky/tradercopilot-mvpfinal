@@ -34,8 +34,8 @@ if sys.platform == 'win32':
 
 app = FastAPI(
     title="TraderCopilot Backend",
-    version="0.8.1",
-    description="API principal para generación de señales y registro de logs."
+    version="0.8.2-force",
+    description="API principal para generación de señales y registro de logs. (Forced Deployment)"
 )
 
 @app.get("/health")
