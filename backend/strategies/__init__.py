@@ -13,6 +13,7 @@ from .supertrend_flow import SuperTrendFlowStrategy
 from .bb_mean_reversion import BBMeanReversionStrategy
 from .rsi_divergence import RSIDivergenceStrategy
 from .vwap_intraday import VWAPIntradayStrategy
+from .TrendFollowingNative import TrendFollowingNative
 
 
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "BBMeanReversionStrategy",
     "RSIDivergenceStrategy",
     "VWAPIntradayStrategy",
+    "TrendFollowingNative",
 
 ]
