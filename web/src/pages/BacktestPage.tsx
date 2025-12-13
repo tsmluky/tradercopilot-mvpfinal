@@ -1,7 +1,8 @@
-
 import React, { useState } from 'react';
-import { Play, TrendingUp, TrendingDown, Clock, Download, Info } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { Play, TrendingUp, TrendingDown, Clock, Info } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { API_BASE_URL } from '../constants';
+import { toast } from 'react-hot-toast';
 
 export const BacktestPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
@@ -22,10 +23,7 @@ export const BacktestPage: React.FC = () => {
         setResults(null);
 
         try {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const API_URL = isLocal ? "http://127.0.0.1:8000" : (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000");
-
-            const res = await fetch(`${API_URL}/backtest/run`, {
+            const res = await fetch(`${API_BASE_URL}/backtest/run`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -38,23 +36,26 @@ export const BacktestPage: React.FC = () => {
             });
 
             if (!res.ok) {
-                throw new Error(`Error ${res.status}: ${await res.text()}`);
+                const text = await res.text();
+                throw new Error(`Error ${res.status}: ${text}`);
             }
 
             const data = await res.json();
             setResults(data);
+            toast.success("Backtest simulation complete!");
         } catch (err: any) {
-            setError(err.message || "Error desconocido al ejecutar backtest");
+            console.error(err);
+            setError(err.message || "Error executing backtest");
+            toast.error("Backtest failed");
         } finally {
             setLoading(false);
         }
     };
 
-    // Preparar datos para el gráfico
-    // El backend ahora devuelve "curve" que tiene la historia día a día
+    // ... (chartData logic remains same)
     const chartData = results?.curve || [];
 
-    // Custom Tooltip
+    // ... (CustomTooltip remains same)
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
@@ -65,11 +66,6 @@ export const BacktestPage: React.FC = () => {
                             {p.name}: ${Number(p.value).toFixed(2)}
                         </p>
                     ))}
-                    {payload[0].payload.price && (
-                        <p className="text-xs text-slate-500 mt-1 border-t border-slate-700 pt-1">
-                            Price: ${Number(payload[0].payload.price).toFixed(2)}
-                        </p>
-                    )}
                 </div>
             );
         }
@@ -77,92 +73,99 @@ export const BacktestPage: React.FC = () => {
     };
 
     return (
-        <div className="p-6 space-y-8 min-h-screen bg-[#020617] text-slate-100">
+        <div className="p-6 space-y-8 min-h-screen bg-[#020617] text-slate-100 animate-fade-in">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
-                        Backtesting & Validación
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">BETA</span>
+                    </div>
+                    <h1 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-fuchsia-400 tracking-tight">
+                        Strategy Lab 🧪
                     </h1>
-                    <p className="text-slate-400 mt-2">
-                        Simula tus estrategias con datos históricos reales vs Buy & Hold.
+                    <p className="text-slate-400 mt-2 max-w-2xl">
+                        Experiment with different strategies, tokens, and timeframes.
+                        Validating a profitable configuration? Create a customized Persona from it.
                     </p>
                 </div>
             </div>
 
             {/* Controls */}
-            <div className="bg-[#0f172a] p-6 rounded-xl border border-slate-800 shadow-lg">
+            <div className="bg-[#0f172a] p-6 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-sm">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    {/* ... (Selects remain same, just styling tweaks if needed) ... */}
                     <div>
-                        <label className="block text-sm text-slate-400 mb-1">Estrategia</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Strategy</label>
                         <select
-                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={params.strategy}
                             onChange={(e) => setParams({ ...params, strategy: e.target.value })}
                         >
-                            <option value="rsi_divergence">RSI Divergence</option>
-                            <option value="ma_cross">MA Cross</option>
+                            <option value="rsi_divergence">RSI Divergence AI</option>
+                            <option value="ma_cross">Trend MA Cross</option>
                             <option value="bb_mean_reversion">Bollinger Mean Rev</option>
                             <option value="donchian">Donchian Breakout</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm text-slate-400 mb-1">Token</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Token</label>
                         <select
-                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={params.token}
                             onChange={(e) => setParams({ ...params, token: e.target.value })}
                         >
                             <option value="BTC">Bitcoin (BTC)</option>
                             <option value="ETH">Ethereum (ETH)</option>
                             <option value="SOL">Solana (SOL)</option>
+                            <option value="DOGE">Dogecoin (DOGE)</option>
+                            <option value="AVAX">Avalanche (AVAX)</option>
+                            <option value="DOT">Polkadot (DOT)</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm text-slate-400 mb-1">Timeframe</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Timeframe</label>
                         <select
-                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={params.timeframe}
                             onChange={(e) => setParams({ ...params, timeframe: e.target.value })}
                         >
-                            <option value="15m">15 Minutos</option>
-                            <option value="1h">1 Hora</option>
-                            <option value="4h">4 Horas</option>
+                            <option value="15m">15 Minutes (Scalp)</option>
+                            <option value="1h">1 Hour (Intraday)</option>
+                            <option value="4h">4 Hours (Swing)</option>
+                            <option value="1d">1 Day (Position)</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm text-slate-400 mb-1">Histórico (Días)</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">History Length</label>
                         <select
-                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={params.days}
                             onChange={(e) => setParams({ ...params, days: Number(e.target.value) })}
                         >
-                            <option value={7}>7 Días (Rápido)</option>
-                            <option value={30}>30 Días (Mes)</option>
-                            <option value={90}>90 Días (Trimestre)</option>
-                            <option value={180}>180 Días (Semestre)</option>
-                            <option value={365}>1 Año (Lento)</option>
+                            <option value={7}>7 Days (Fast)</option>
+                            <option value={30}>30 Days (Standard)</option>
+                            <option value={90}>90 Days (Deep)</option>
                         </select>
                     </div>
 
                     <button
                         onClick={runBacktest}
                         disabled={loading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? (
                             <Clock className="animate-spin h-5 w-5" />
                         ) : (
                             <Play className="h-5 w-5" />
                         )}
-                        {loading ? 'Simulando...' : 'Ejecutar'}
+                        {loading ? 'Simulating...' : 'Run Experiment'}
                     </button>
                 </div>
-                {error && <p className="text-red-400 mt-4 text-sm bg-red-900/20 p-2 rounded border border-red-900">{error}</p>}
+                {error && <p className="text-rose-400 mt-4 text-sm bg-rose-950/30 p-3 rounded-lg border border-rose-900 flex items-center gap-2"><Info className="w-4 h-4" />{error}</p>}
             </div>
 
             {/* Results View */}
@@ -184,17 +187,27 @@ export const BacktestPage: React.FC = () => {
                                     {results.metrics.total_pnl > results.metrics.buy_hold_pnl ? 'Strategy Outperforms Market' : 'Strategy Underperforms Market'}
                                 </h3>
                                 <p className="text-slate-400 text-sm">
-                                    Diferencia (Alpha): <span className="font-mono font-bold text-slate-200">
+                                    Alpha: <span className="font-mono font-bold text-slate-200">
                                         ${(results.metrics.total_pnl - results.metrics.buy_hold_pnl).toFixed(2)}
                                     </span> vs Buy & Hold
                                 </p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Net Result</span>
-                            <p className={`text-3xl font-bold ${results.metrics.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {results.metrics.total_pnl >= 0 ? '+' : ''}{results.metrics.total_pnl} USD
-                            </p>
+                        <div className="flex items-center gap-6">
+                            <div className="text-right">
+                                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Net Result</span>
+                                <p className={`text-3xl font-bold ${results.metrics.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {results.metrics.total_pnl >= 0 ? '+' : ''}{results.metrics.total_pnl} USD
+                                </p>
+                            </div>
+
+                            {/* Create Persona Intent */}
+                            {results.metrics.total_pnl > 0 && (
+                                <button className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-lg border border-slate-700 transition-all flex flex-col items-center gap-1 group">
+                                    <span className="group-hover:text-indigo-400 transition-colors">SAVE AS AGENT</span>
+                                    <span className="text-[10px] text-slate-500 font-normal">Add to Marketplace</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
