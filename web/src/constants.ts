@@ -1,7 +1,22 @@
-// FORZANDO URL DE PRODUCCIÓN PARA DEBUG
-export const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_BASE_URL ??
-  "http://127.0.0.1:8000";
+// SMART URL DETECTION
+const getBaseUrl = () => {
+  // 1. If Vercel/Build Env Var is explicitly set, use it.
+  if ((import.meta as any).env?.VITE_API_BASE_URL) {
+    return (import.meta as any).env.VITE_API_BASE_URL;
+  }
+
+  // 2. If running on Localhost, use local backend.
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://127.0.0.1:8000";
+    }
+  }
+
+  // 3. Fallback for Production (Railway)
+  return "https://tradercopilot-mvpfinal-production.up.railway.app";
+};
+
+export const API_BASE_URL: string = getBaseUrl();
 
 // === Tokens soportados ===
 
