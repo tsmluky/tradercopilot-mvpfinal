@@ -18,4 +18,4 @@ python scheduler.py &
 # 2. Start the API
 # Force port 8000 to match Railway Networking Config (Hardcoded)
 echo "Using Hardcoded PORT: 8000"
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'
