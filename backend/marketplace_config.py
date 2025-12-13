@@ -48,6 +48,34 @@ MARKETPLACE_PERSONAS = [
         "is_active": True
     },
     {
+        "id": "eth_breaker",
+        "name": "Ether Breaker",
+        "symbol": "ETH",
+        "timeframe": "4h",
+        "strategy_id": "donchian_v2",
+        "description": "Exploits volatility breakouts in Ethereum. Captures 4-hour moves.",
+        "risk_level": "Medium",
+        "expected_roi": "45%",
+        "win_rate": "48%",
+        "frequency": "Medium (3 trades/week)",
+        "color": "indigo",
+        "is_active": True
+    },
+    {
+        "id": "doge_runner",
+        "name": "Doge Runner",
+        "symbol": "DOGE",
+        "timeframe": "4h",
+        "strategy_id": "donchian_v2",
+        "description": "Meme-coin momentum hunter. Rides the Doge waves when they break key levels.",
+        "risk_level": "High",
+        "expected_roi": "120%",
+        "win_rate": "40%",
+        "frequency": "Low (1 trade/week)",
+        "color": "amber",
+        "is_active": True
+    },
+    {
         "id": "flow_avax",
         "name": "Flow Master",
         "symbol": "AVAX",
