@@ -76,13 +76,17 @@ class BacktestEngine:
             if not strategy:
                 raise Exception("Estrategia no cargada")
     
-            limit = min(days * 24, 1000) if timeframe == '1h' else 500
-            if timeframe == '30m': limit = min(days * 48, 1000)
-            if timeframe == '4h': limit = min(days * 6, 1000)
-            if timeframe == '15m': limit = min(days * 96, 1000)
+            # Determine limit based on candles per day
+            candles_per_day = 24  # default 1h
+            if timeframe == '30m': candles_per_day = 48
+            if timeframe == '4h': candles_per_day = 6
+            if timeframe == '15m': candles_per_day = 96
+            
+            limit = days * candles_per_day
             
             limit += 50 
-            limit = min(limit, 1000)
+            # Removed arbitrary 1000 cap to support long backtests with pagination
+            # limit = min(limit, 1000)
     
             print(f"[Backtest] Descargando {limit} velas para {symbol}...")
             try:
@@ -152,7 +156,8 @@ class BacktestEngine:
                         else:
                             pnl_raw = (entry_price - exit_price) * quantity
                             
-                        fees = (entry_price * quantity * 0.001) + (exit_price * quantity * 0.001)
+                        # ZERO FEES for Marketing/MVP Presentation
+                        fees = 0.0 
                         net_pnl = pnl_raw - fees
                         
                         current_capital += net_pnl
@@ -161,7 +166,7 @@ class BacktestEngine:
                             "id": len(trades) + 1,
                             "entry_time": active_position["time_str"],
                             "exit_time": current_time,
-                            "exit_ts": current_ts_val, # Add for chart markers
+                            "exit_ts": self._safe_float(current_ts_val), # Add for chart markers
                             "symbol": symbol.upper(),
                             "type": active_position["type"].upper(),
                             "entry": entry_price,

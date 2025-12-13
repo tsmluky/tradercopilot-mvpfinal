@@ -1,5 +1,6 @@
 import sys
 import os
+import asyncio
 import csv
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
@@ -26,6 +27,11 @@ from core.signal_logger import log_signal, signal_from_dict
 from rag_context import build_token_context
 
 # ==== 3. FastAPI App ====
+
+# FIX: Windows + Async PG functionality requires SelectorEventLoopPolicy
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 app = FastAPI(
     title="TraderCopilot Backend",
     version="0.8.1",
@@ -40,8 +46,19 @@ def health_check():
 # En desarrollo: localhost
 # En producción (Railway): permitir todos los orígenes o configurar específicamente
 # CORS Configuration - Permissive for MVP
-origins = ["*"]
-print("[CORS] MVP Mode - Allowing all origins")
+# CORS Configuration
+# En producción, especificar dominios exactos.
+# Para desarrollo local con credenciales, necesitamos orígenes explícitos si allow_credentials=True.
+origins = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+    "*" # Comentar esto si se desea estricto, pero para MVP local ayuda.
+]
+print(f"[CORS] Allowed Origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,12 +109,14 @@ from routers.logs import router as logs_router
 from routers.notifications import router as notifications_router
 from routers.advisor import router as advisor_router
 from routers.backtest import router as backtest_router
+from routers.auth import router as auth_router # [NEW] Auth Support
 
 app.include_router(strategies_router)
 app.include_router(logs_router)
 app.include_router(notifications_router)
 app.include_router(advisor_router)
 app.include_router(backtest_router)
+app.include_router(auth_router) # [NEW] Register Auth Router
 
 
 # ==== 4. Configuración global ====

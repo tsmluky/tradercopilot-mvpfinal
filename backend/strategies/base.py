@@ -91,6 +91,11 @@ class StrategyMetadata(BaseModel):
         description="Tipo de origen de señales",
     )
     
+    category: Literal["TREND", "REVERSION", "NEUTRAL"] = Field(
+        default="NEUTRAL",
+        description="Categoría de mercado: TREND (Tendencia) o REVERSION (Rango)",
+    )
+    
     enabled: bool = Field(
         default=True,
         description="Si está activa y disponible para uso",

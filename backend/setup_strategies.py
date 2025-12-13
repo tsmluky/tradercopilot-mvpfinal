@@ -16,6 +16,9 @@ sys.path.insert(0, str(current_dir))
 
 from strategies.registry import get_registry
 from strategies.example_rsi_macd import RSIMACDDivergenceStrategy
+from strategies.DonchianBreakoutV2 import DonchianBreakoutV2
+from strategies.supertrend_flow import SuperTrendFlowStrategy
+from strategies.vwap_intraday import VWAPIntradayStrategy
 from database import SessionLocal
 from models_db import StrategyConfig
 import json
@@ -27,8 +30,17 @@ def register_built_in_strategies():
     
     registry = get_registry()
     
-    # Registrar ejemplo RSI MACD
+    # 1. RSI MACD
     registry.register(RSIMACDDivergenceStrategy)
+    
+    # 2. Donchian V2
+    registry.register(DonchianBreakoutV2)
+    
+    # 3. SuperTrend Flow
+    registry.register(SuperTrendFlowStrategy)
+
+    # 4. VWAP Intraday
+    registry.register(VWAPIntradayStrategy)
     
     print("✅ Built-in strategies registered")
 
@@ -53,8 +65,8 @@ def setup_db_configs():
                 name="RSI + MACD Divergence Detector",
                 description="Detecta divergencias entre RSI y MACD para señales contrarian",
                 version="1.0.0",
-                enabled=0,  # Desactivada por defecto (puedes activarla desde el dashboard)
-                interval_seconds=300,  # 5 minutos
+                enabled=0,
+                interval_seconds=300,
                 tokens=json.dumps(["ETH", "BTC", "SOL"]),
                 timeframes=json.dumps(["1h", "4h"]),
                 risk_profile="medium",
@@ -70,9 +82,7 @@ def setup_db_configs():
             db.add(config)
             db.commit()
             print("  ✅ Created config for: rsi_macd_divergence_v1")
-        else:
-            print("  ℹ️  Config already exists for: rsi_macd_divergence_v1")
-            
+        
         # Configuración para DonchianBreakoutV2
         existing_donchian = db.query(StrategyConfig).filter(
             StrategyConfig.strategy_id == "donchian_v2"
@@ -81,13 +91,13 @@ def setup_db_configs():
         if not existing_donchian:
             config_donchian = StrategyConfig(
                 strategy_id="donchian_v2",
-                name="Donchian Breakout V2 (Refined)",
+                name="Donchian Breakout V2",
                 description="Trend following breakout strategy with Volatility (ATR) and Trend (EMA200) filters.",
                 version="2.0.0",
-                enabled=1,  # Activada por defecto para testing
-                interval_seconds=60,  # 1 minuto para pruebas rápidas
-                tokens=json.dumps(["ETH", "BTC"]),
-                timeframes=json.dumps(["1h"]),
+                enabled=1,
+                interval_seconds=60,
+                tokens=json.dumps(["ETH", "BTC", "SOL"]),
+                timeframes=json.dumps(["1h", "4h"]),
                 risk_profile="medium-high",
                 mode="PRO",
                 source_type="ENGINE",
@@ -101,8 +111,65 @@ def setup_db_configs():
             db.add(config_donchian)
             db.commit()
             print("  ✅ Created config for: donchian_v2")
-        else:
-            print("  ℹ️  Config already exists for: donchian_v2")
+
+        # Configuración para SuperTrend
+        existing_st = db.query(StrategyConfig).filter(
+            StrategyConfig.strategy_id == "supertrend_flow_v1"
+        ).first()
+        
+        if not existing_st:
+            config_st = StrategyConfig(
+                strategy_id="supertrend_flow_v1",
+                name="SuperTrend Flow",
+                description="Seguimiento de tendencia puro con SuperTrend indicator.",
+                version="1.0.0",
+                enabled=1,
+                interval_seconds=300,
+                tokens=json.dumps(["SOL", "AVAX"]),
+                timeframes=json.dumps(["4h"]),
+                risk_profile="medium",
+                mode="CUSTOM",
+                source_type="ENGINE",
+                config_json=json.dumps({
+                    "atr_period": 10,
+                    "atr_multiplier": 3.0,
+                    "tp_atr_mult": 3.0,
+                    "sl_atr_mult": 1.5
+                })
+            )
+            db.add(config_st)
+            db.commit()
+            print("  ✅ Created config for: supertrend_flow_v1")
+
+        # Configuración para VWAP
+        existing_vwap = db.query(StrategyConfig).filter(
+            StrategyConfig.strategy_id == "vwap_intraday_v1"
+        ).first()
+        
+        if not existing_vwap:
+            config_vwap = StrategyConfig(
+                strategy_id="vwap_intraday_v1",
+                name="VWAP Intraday",
+                description="Opera rebotes y rechazos del VWAP con confirmación de volumen.",
+                version="1.0.0",
+                enabled=1,
+                interval_seconds=300,
+                tokens=json.dumps(["MATIC", "LINK"]),
+                timeframes=json.dumps(["15m"]),
+                risk_profile="medium",
+                mode="CUSTOM",
+                source_type="ENGINE",
+                config_json=json.dumps({
+                    "vwap_bands_std": 1.0,
+                    "volume_ma_period": 20,
+                    "volume_threshold": 1.2,
+                    "tp_pct": 0.015,
+                    "sl_pct": 0.008
+                })
+            )
+            db.add(config_vwap)
+            db.commit()
+            print("  ✅ Created config for: vwap_intraday_v1")
         
     except Exception as e:
         print(f"  ❌ Error: {e}")

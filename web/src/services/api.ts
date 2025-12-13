@@ -8,6 +8,7 @@ import {
   LeaderboardEntry,
   ChatMessage,
   AnalysisMode,
+  UserProfile,
 } from "../types";
 
 // =========================
@@ -15,6 +16,7 @@ import {
 // =========================
 
 const DEFAULT_TIMEOUT_MS = 15000;
+
 
 async function fetchWithTimeout(
   url: string,
@@ -24,13 +26,23 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Inject Token if available
+  const token = localStorage.getItem('auth_token');
+  const headers = { ...init.headers } as Record<string, string>;
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   try {
-    const res = await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, { ...init, headers, signal: controller.signal });
     return res;
   } finally {
     clearTimeout(id);
   }
 }
+
+// ... existing isJsonContent ...
 
 function isJsonContent(res: Response): boolean {
   const ct = res.headers.get("content-type") || "";
@@ -412,6 +424,50 @@ export async function sendAdvisorChat(
 }
 
 // =========================
+// Auth API
+// =========================
+
+export async function login(email: string, password: string): Promise<any> {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
+
+  const res = await fetchWithTimeout(`${API_BASE_URL}/auth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formData.toString(),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Login failed: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
+export async function register(email: string, password: string, name?: string): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/auth/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&name=${encodeURIComponent(name || 'Trader')}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  if (!res.ok) throw new Error('Registration failed');
+  return res.json();
+}
+
+export async function getMe(): Promise<UserProfile['user']> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/auth/users/me`, {
+    method: 'GET'
+  });
+
+  if (!res.ok) throw new Error('Failed to fetch user profile');
+  return res.json();
+}
+
+
+// =========================
 // API pública agrupada
 // =========================
 
@@ -424,4 +480,7 @@ export const api = {
   notifyTelegram,
   fetchLeaderboard,
   sendAdvisorChat,
+  login,
+  register,
+  getMe
 };

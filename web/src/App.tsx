@@ -35,19 +35,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const App: React.FC = () => {
-  const [chatOpen, setChatOpen] = React.useState(false);
-  const [chatContext, setChatContext] = React.useState<{ token?: string, context?: any }>({});
-
-  React.useEffect(() => {
-    const handleOpenChat = (e: any) => {
-      setChatContext(e.detail || {});
-      setChatOpen(true);
-    };
-
-    window.addEventListener('open-advisor-chat', handleOpenChat);
-    return () => window.removeEventListener('open-advisor-chat', handleOpenChat);
-  }, []);
-
   return (
     <AuthProvider>
       <Router>
@@ -78,16 +65,8 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        {/* Global Advisor Chat Overlay */}
-        {chatOpen && (
-          <div className="fixed bottom-0 right-0 z-[60] h-[600px] w-full md:w-auto shadow-2xl animate-in slide-in-from-right-10 duration-300">
-            <AdvisorChat
-              token={chatContext.token}
-              context={chatContext.context}
-              onClose={() => setChatOpen(false)}
-            />
-          </div>
-        )}
+        {/* Global Advisor Chat Overlay - Self Managed */}
+        <AdvisorChat />
 
       </Router>
     </AuthProvider>

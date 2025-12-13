@@ -22,7 +22,8 @@ export const BacktestPage: React.FC = () => {
         setResults(null);
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const API_URL = isLocal ? "http://127.0.0.1:8000" : (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000");
 
             const res = await fetch(`${API_URL}/backtest/run`, {
                 method: 'POST',
@@ -143,6 +144,8 @@ export const BacktestPage: React.FC = () => {
                             <option value={7}>7 Días (Rápido)</option>
                             <option value={30}>30 Días (Mes)</option>
                             <option value={90}>90 Días (Trimestre)</option>
+                            <option value={180}>180 Días (Semestre)</option>
+                            <option value={365}>1 Año (Lento)</option>
                         </select>
                     </div>
 
@@ -163,50 +166,79 @@ export const BacktestPage: React.FC = () => {
             </div>
 
             {/* Results View */}
-            {results && (
+            {results && results.metrics && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                    {/* Metrics Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800 relative overflow-hidden">
-                            <div className="relative z-10">
-                                <p className="text-slate-400 text-sm">Strategy PnL</p>
-                                <p className={`text-2xl font-bold ${results.metrics.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {results.metrics.total_pnl >= 0 ? '+' : ''}{results.metrics.total_pnl} USDT
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                                    <Info size={12} /> Vs Buy & Hold:
-                                    <span className={results.metrics.buy_hold_pnl > results.metrics.total_pnl ? 'text-red-400' : 'text-green-400'}>
-                                        ${results.metrics.buy_hold_pnl}
-                                    </span>
+                    {/* Performance Summary Banner */}
+                    <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-center justify-between gap-4 ${results.metrics.total_pnl > results.metrics.buy_hold_pnl
+                        ? 'bg-green-900/10 border-green-900/50'
+                        : 'bg-red-900/10 border-red-900/50'
+                        }`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-full ${results.metrics.total_pnl > results.metrics.buy_hold_pnl ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                {results.metrics.total_pnl > results.metrics.buy_hold_pnl ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-200">
+                                    {results.metrics.total_pnl > results.metrics.buy_hold_pnl ? 'Strategy Outperforms Market' : 'Strategy Underperforms Market'}
+                                </h3>
+                                <p className="text-slate-400 text-sm">
+                                    Diferencia (Alpha): <span className="font-mono font-bold text-slate-200">
+                                        ${(results.metrics.total_pnl - results.metrics.buy_hold_pnl).toFixed(2)}
+                                    </span> vs Buy & Hold
                                 </p>
                             </div>
-                            {/* Background decoration */}
-                            <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10 ${results.metrics.total_pnl >= 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         </div>
-
-                        <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800">
-                            <p className="text-slate-400 text-sm">Win Rate</p>
-                            <p className="text-2xl font-bold text-indigo-400">{results.metrics.win_rate}%</p>
-                            <p className="text-xs text-slate-500 mt-1">
-                                {results.metrics.total_trades} Trades
+                        <div className="text-right">
+                            <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Net Result</span>
+                            <p className={`text-3xl font-bold ${results.metrics.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {results.metrics.total_pnl >= 0 ? '+' : ''}{results.metrics.total_pnl} USD
                             </p>
                         </div>
+                    </div>
+
+                    {/* Detailed Metrics Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800">
-                            <p className="text-slate-400 text-sm">Best Trade</p>
-                            <p className="text-2xl font-bold text-green-400">+{results.metrics.best_trade}</p>
+                            <p className="text-slate-500 text-xs uppercase mb-1">Buy & Hold PnL</p>
+                            <p className="text-xl font-mono text-slate-300">
+                                {results.metrics.buy_hold_pnl >= 0 ? '+' : ''}{results.metrics.buy_hold_pnl} USD
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-1">If you just held the token</p>
                         </div>
                         <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800">
-                            <p className="text-slate-400 text-sm">Worst Trade</p>
-                            <p className="text-2xl font-bold text-red-400">{results.metrics.worst_trade}</p>
+                            <p className="text-slate-500 text-xs uppercase mb-1">Win Rate</p>
+                            <p className="text-xl font-bold text-indigo-400">{results.metrics.win_rate}%</p>
+                            <p className="text-[10px] text-slate-500 mt-1">{results.metrics.total_trades} Trades Executed</p>
+                        </div>
+                        <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800">
+                            <p className="text-slate-500 text-xs uppercase mb-1">Best Trade</p>
+                            <p className="text-xl font-bold text-green-400">+{results.metrics.best_trade} USD</p>
+                        </div>
+                        <div className="bg-[#0f172a] p-4 rounded-xl border border-slate-800">
+                            <p className="text-slate-500 text-xs uppercase mb-1">Worst Trade</p>
+                            <p className="text-xl font-bold text-red-400">{results.metrics.worst_trade} USD</p>
                         </div>
                     </div>
 
                     {/* Chart */}
                     <div className="bg-[#0f172a] p-6 rounded-xl border border-slate-800 h-[450px]">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-indigo-400" /> Benchmark (Buy & Hold) vs Strategy
-                        </h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-indigo-400" /> Comparativa de Equity
+                            </h3>
+                            <div className="flex gap-4 text-xs">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-[#818cf8]"></div>
+                                    <span className="text-slate-300 font-bold">Tu Estrategia</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-[#64748b]"></div>
+                                    <span className="text-slate-400">Mercado (Buy & Hold)</span>
+                                </div>
+                            </div>
+                        </div>
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -215,10 +247,30 @@ export const BacktestPage: React.FC = () => {
                                     stroke="#64748b"
                                     tick={{ fontSize: 12 }}
                                     minTickGap={50}
+                                    tickFormatter={(val) => {
+                                        // "time" is now "YYYY-MM-DD HH:mm"
+                                        try {
+                                            if (params.days > 2) {
+                                                // Return MM-DD
+                                                // Assuming val is "YYYY-MM-DD HH:mm"
+                                                if (val.includes('-')) {
+                                                    const datePart = val.split(' ')[0];
+                                                    const parts = datePart.split('-');
+                                                    if (parts.length === 3) {
+                                                        return `${parts[2]}/${parts[1]}`; // DD/MM
+                                                    }
+                                                }
+                                            }
+                                            // Fallback or short duration: Show HH:mm
+                                            if (val.includes(' ')) return val.split(' ')[1];
+                                            return val;
+                                        } catch (e) {
+                                            return val;
+                                        }
+                                    }}
                                 />
                                 <YAxis stroke="#64748b" domain={['auto', 'auto']} />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Legend />
                                 <Line
                                     name="Strategy Equity"
                                     type="monotone"
@@ -226,6 +278,7 @@ export const BacktestPage: React.FC = () => {
                                     stroke="#818cf8"
                                     strokeWidth={3}
                                     dot={false}
+                                    activeDot={{ r: 6, strokeWidth: 0 }}
                                 />
                                 <Line
                                     name="Buy & Hold"
@@ -235,6 +288,7 @@ export const BacktestPage: React.FC = () => {
                                     strokeWidth={2}
                                     strokeDasharray="5 5"
                                     dot={false}
+                                    opacity={0.6}
                                 />
                             </LineChart>
                         </ResponsiveContainer>

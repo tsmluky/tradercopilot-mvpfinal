@@ -112,6 +112,12 @@ class Signal(BaseModel):
         description="Origen de la señal: 'LLM', 'ENGINE', 'MANUAL', 'LAB', etc.",
         max_length=50,
     )
+    
+    category: Optional[str] = Field(
+        None,
+        description="Categoría de estrategia: TREND | REVERSION",
+        max_length=20
+    )
 
     extra: Optional[Dict[str, Any]] = Field(
         None,

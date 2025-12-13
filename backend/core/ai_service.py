@@ -110,6 +110,25 @@ class GeminiProvider(AIProvider):
             return response.text
             
         except Exception as e:
+            error_msg = str(e)
+            # Detectar errores de cuota o rate limit
+            is_quota_error = "429" in error_msg or "403" in error_msg or "quota" in error_msg.lower() or "resource" in error_msg.lower()
+            
+            if is_quota_error:
+                print(f"[AI] ⚠️ Gemini Rate Limit/Quota Hit. Falling back to DeepSeek... (Error: {error_msg[:100]})")
+                try:
+                    fallback = DeepSeekProvider()
+                    # Mapear 'model' role de vuelta a 'assistant' si DeepSeek lo requiere, 
+                    # pero DeepSeekProvider.chat ya maneja 'role' standard.
+                    # Aseguramos que los roles sean compatibles. 
+                    # Gemini usa 'user'/'model', DeepSeek usa 'user'/'assistant'.
+                    # El input 'messages' a esta función viene agnóstico (proviene del router),
+                    # PERO la clase GeminiProvider hace su propia conversión interna.
+                    # Aquí pasamos 'messages' originales a DeepSeek, que espera standard (user/assistant).
+                    return fallback.chat(messages, system_instruction)
+                except Exception as fallback_err:
+                    return f"Gemini Error & Fallback Error: {str(e)} | {str(fallback_err)}"
+            
             return f"Gemini Error: {str(e)}"
 
     def generate_analysis(self, prompt: str, system_instruction: str = None) -> str:
@@ -124,6 +143,17 @@ class GeminiProvider(AIProvider):
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
+            error_msg = str(e)
+            is_quota_error = "429" in error_msg or "403" in error_msg or "quota" in error_msg.lower() or "resource" in error_msg.lower()
+            
+            if is_quota_error:
+                print(f"[AI] ⚠️ Gemini Rate Limit Hit during Analysis. Falling back to DeepSeek...")
+                try:
+                    fallback = DeepSeekProvider()
+                    return fallback.generate_analysis(prompt, system_instruction)
+                except Exception as fb_e:
+                    return f"Gemini & DeepSeek Failed: {str(e)} | {str(fb_e)}"
+
             return f"Gemini Analysis Error: {str(e)}"
 
 

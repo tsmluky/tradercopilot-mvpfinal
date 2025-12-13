@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
+import ssl
 from dotenv import load_dotenv
 
 # Load .env file FIRST
@@ -25,11 +26,28 @@ if DATABASE_URL:
         if DATABASE_URL.startswith("postgres://"):
             DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         
-        # For async, use postgresql+asyncpg://
-        if "postgresql://" in DATABASE_URL and "+asyncpg" not in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # For async, use postgresql+psycopg://
+        # We switch to psycopg 3 ("postgresql+psycopg://") which uses libpq and is stable on Windows
+        if "postgresql://" in DATABASE_URL and "+psycopg" not in DATABASE_URL:
+             # Make sure we don't double-replace if it was already asyncpg
+             DATABASE_URL = DATABASE_URL.replace("+asyncpg", "") 
+             DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
         
-        DATABASE_URL_SYNC = DATABASE_URL.replace("+asyncpg", "")
+        # psycopg (v3) uses 'sslmode' param standardly, like psycopg2
+        if "rlwy.net" in DATABASE_URL and "sslmode" not in DATABASE_URL:
+             separator = "&" if "?" in DATABASE_URL else "?"
+             DATABASE_URL += f"{separator}sslmode=require"
+        
+        # Clean up any leftover asyncpg-specific params if they exist (unlikely but safe)
+        DATABASE_URL = DATABASE_URL.replace("ssl=require", "") # remove asyncpg specific param if present
+
+        DATABASE_URL_SYNC = DATABASE_URL.replace("+psycopg", "")
+        DATABASE_URL_SYNC = DATABASE_URL_SYNC.replace("+asyncpg", "") # just in case
+
+        # Fix for Railway/Psycopg2: Force sslmode=require
+        if "rlwy.net" in DATABASE_URL_SYNC and "sslmode" not in DATABASE_URL_SYNC:
+             separator = "&" if "?" in DATABASE_URL_SYNC else "?"
+             DATABASE_URL_SYNC += f"{separator}sslmode=require"
     
     print(f"[DB DEBUG] Final Async URL starts with: {DATABASE_URL[:25]}...")
     print(f"[DB] Using Configured Database")

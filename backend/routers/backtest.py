@@ -39,8 +39,17 @@ def run_backtest(req: BacktestRequest):
         return results
         
     except Exception as e:
-        print(f"Backtest Error: {e}")
+        import traceback
+        print(f"❌ [API CRITICAL BACKTEST ERROR]: {e}")
         traceback.print_exc()
+        try:
+            # Intentar ver si es error de serialización
+            from fastapi.encoders import jsonable_encoder
+            jsonable_encoder(results)
+        except Exception as se:
+            print(f"❌ [SERIALIZATION ERROR]: {se}")
+            return HTTPException(status_code=500, detail=f"Serialization Error: {se}")
+
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/strategies")

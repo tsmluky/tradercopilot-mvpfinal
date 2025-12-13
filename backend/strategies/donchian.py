@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import pandas_ta as ta # Required for .ta accessor
 
 from .base import Strategy, StrategyMetadata
 from core.schemas import Signal
@@ -34,6 +35,7 @@ class DonchianStrategy(Strategy):
             risk_profile="high",
             mode="CUSTOM",
             source_type="ENGINE",
+            category="TREND",
             enabled=True,
             config={
                 "period": self.period,
@@ -68,14 +70,20 @@ class DonchianStrategy(Strategy):
         atr_pct = (d["atr"] / d["close"]).fillna(0)
         is_volatile = atr_pct >= self.atr_pct_min
         
+        # ADX (Average Directional Index) for Trend Strength
+        adx_period = 14
+        d.ta.adx(length=adx_period, append=True)
+        adx_col = f"ADX_{adx_period}"
+        strong_trend = d[adx_col] >= 25
+        
         # Shift para comparar cierre con EMA previa (trend filter)
         # Usamos la EMA de la vela anterior para determinar tendencia antes de la ruptura
         trend_bullish = d["close"] > d["ema200"]
         trend_bearish = d["close"] < d["ema200"]
         
-        # Breakouts
-        breakout_high = (d["high"] > d["donch_high"]) & is_volatile & trend_bullish
-        breakout_low = (d["low"] < d["donch_low"]) & is_volatile & trend_bearish
+        # Breakouts + ADX Filter
+        breakout_high = (d["high"] > d["donch_high"]) & is_volatile & trend_bullish & strong_trend
+        breakout_low = (d["low"] < d["donch_low"]) & is_volatile & trend_bearish & strong_trend
         
         signals = []
         
@@ -107,6 +115,7 @@ class DonchianStrategy(Strategy):
                 timestamp=signal_ts,
                 strategy_id=self.metadata().id,
                 mode="CUSTOM",
+                category="TREND",
                 token=token.upper(),
                 timeframe=timeframe,
                 direction=direction,

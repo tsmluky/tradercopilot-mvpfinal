@@ -1,183 +1,163 @@
-# backend/strategies/bb_mean_reversion.py
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-import pandas as pd
-import numpy as np
 
 from .base import Strategy, StrategyMetadata
 from core.schemas import Signal
-from market_data_api import get_ohlcv_data
+from datetime import datetime
+from typing import List, Optional, Dict, Any
+import pandas as pd
+import pandas_ta as ta
 
 class BBMeanReversionStrategy(Strategy):
     """
-    Estrategia de Reversión a la Media con Bandas de Bollinger.
-    
-    Opera cuando el precio toca las bandas exteriores en un mercado lateral (rango).
-    Define rango usando la distancia entre EMA50 y EMA200.
+    Estrategia "Mean Reversion" basada en el torneo.
+    Compra en la banda inferior y vende en la superior, buscando retorno a la media.
+    Filtra con RSI para evitar operar contra tendencias muy fuertes sin agotamiento.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self.config = config or {}
-        self.bb_period = self.config.get("bb_period", 20)
-        self.bb_std = self.config.get("bb_std", 2.0)
-        self.regime_thr = self.config.get("regime_thr", 0.01)
-        self.tp_atr_mult = self.config.get("tp_atr_mult", 1.2)
-        self.sl_atr_mult = self.config.get("sl_atr_mult", 0.8)
-        
     def metadata(self) -> StrategyMetadata:
         return StrategyMetadata(
-            id="bb_mean_reversion_v1",
-            name=f"BB Mean Reversion {self.bb_period}",
-            description="Reversión a la media en mercados laterales usando Bollinger Bands.",
+            id="bb_mean_reversion",
+            name="Bollinger Reversion",
+            description="Mean Reversion using Bollinger Bands (20, 2.0) + RSI Filter.",
             version="1.0.0",
-            default_timeframe="15m",
-            universe=["*"],
+            universe=["BTC", "ETH", "SOL"], # Main assets
             risk_profile="medium",
             mode="CUSTOM",
             source_type="ENGINE",
-            enabled=True,
-            config={
-                "bb_period": self.bb_period,
-                "bb_std": self.bb_std,
-                "regime_thr": self.regime_thr,
-                "tp_atr_mult": self.tp_atr_mult,
-                "sl_atr_mult": self.sl_atr_mult
-            }
+            category="REVERSION", # New Category
+            default_timeframe="1h"
         )
 
-    def analyze(self, df: pd.DataFrame, token: str, timeframe: str) -> List[Signal]:
-        if df.empty or len(df) < 200:
-            return []
-
-        d = df.copy()
-        
-        # Bollinger Bands
-        d["ma"] = d["close"].rolling(self.bb_period).mean()
-        d["std"] = d["close"].rolling(self.bb_period).std(ddof=0)
-        d["upper"] = d["ma"] + self.bb_std * d["std"]
-        d["lower"] = d["ma"] - self.bb_std * d["std"]
-        d["pct_b"] = (d["close"] - d["lower"]) / (d["upper"] - d["lower"])
-        
-        # Regime Filter (Range vs Trend)
-        d["ema50"] = d["close"].ewm(span=50, adjust=False).mean()
-        d["ema200"] = d["close"].ewm(span=200, adjust=False).mean()
-        d["regime_val"] = (d["ema50"] - d["ema200"]).abs() / d["close"]
-        d["is_ranging"] = d["regime_val"] < self.regime_thr
-        
-        # ATR
-        d["tr"] = np.maximum(
-            d["high"] - d["low"],
-            np.maximum(
-                abs(d["high"] - d["close"].shift(1)),
-                abs(d["low"] - d["close"].shift(1))
-            )
-        )
-        d["atr"] = d["tr"].rolling(window=14).mean()
-        
-        # RSI Filter
-        delta = d["close"].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        d["rsi"] = 100 - (100 / (1 + rs))
-        
+    def generate_signals(
+        self,
+        tokens: List[str],
+        timeframe: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> List[Signal]:
         signals = []
         
-        # Filtrar donde is_ranging es True
-        ranging_d = d[d["is_ranging"]]
-        
-        # Buscar toques de bandas con confirmación de RSI
-        # Long: pct_b < 0.05 AND RSI < 30 (Oversold)
-        long_signals = ranging_d[(ranging_d["pct_b"] < 0.05) & (ranging_d["rsi"] < 30)]
-        
-        # Short: pct_b > 0.95 AND RSI > 70 (Overbought)
-        short_signals = ranging_d[(ranging_d["pct_b"] > 0.95) & (ranging_d["rsi"] > 70)]
-        
-        # Procesar Longs
-        for ts, row in long_signals.iterrows():
-            close = float(row["close"])
-            atr = float(row["atr"]) if not pd.isna(row["atr"]) else close * 0.01
-            rsi_val = float(row["rsi"])
-            
-            direction = "long"
-            tp = close + self.tp_atr_mult * atr
-            sl = close - self.sl_atr_mult * atr
-            rationale = f"Oversold in Range (Lower BB + RSI {rsi_val:.1f})"
-            
-            signal_ts = ts if isinstance(ts, datetime) else datetime.utcnow()
-            
-            signal = Signal(
-                timestamp=signal_ts,
-                strategy_id=self.metadata().id,
-                mode="CUSTOM",
-                token=token.upper(),
-                timeframe=timeframe,
-                direction=direction,
-                entry=round(close, 2),
-                tp=round(tp, 2),
-                sl=round(sl, 2),
-                confidence=0.8, # Higher confidence due to RSI
-                rationale=rationale,
-                source="ENGINE",
-                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING", "rsi": round(rsi_val, 1)}
-            )
-            signals.append(signal)
-            
-        # Procesar Shorts
-        for ts, row in short_signals.iterrows():
-            close = float(row["close"])
-            atr = float(row["atr"]) if not pd.isna(row["atr"]) else close * 0.01
-            rsi_val = float(row["rsi"])
-            
-            direction = "short"
-            tp = close - self.tp_atr_mult * atr
-            sl = close + self.sl_atr_mult * atr
-            rationale = f"Overbought in Range (Upper BB + RSI {rsi_val:.1f})"
-            
-            signal_ts = ts if isinstance(ts, datetime) else datetime.utcnow()
-            
-            signal = Signal(
-                timestamp=signal_ts,
-                strategy_id=self.metadata().id,
-                mode="CUSTOM",
-                token=token.upper(),
-                timeframe=timeframe,
-                direction=direction,
-                entry=round(close, 2),
-                tp=round(tp, 2),
-                sl=round(sl, 2),
-                confidence=0.8,
-                rationale=rationale,
-                source="ENGINE",
-                extra={"pct_b": round(row["pct_b"], 2), "regime": "RANGING", "rsi": round(rsi_val, 1)}
-            )
-            signals.append(signal)
-            
-        # Ordenar por timestamp
-        signals.sort(key=lambda x: x.timestamp)
-            
-        return signals
+        # En producción/backtest, "data" suele venir en el contexto
+        if not context or "data" not in context:
+            # Si no hay datos inyectados, en un entorno real aquí se pedirían a la API
+            # Para este MVP asumimos que el scheduler/engine inyecta los datos
+            return []
 
-    def generate_signals(self, tokens: List[str], timeframe: str, context: Optional[Dict[str, Any]] = None) -> List[Signal]:
-        valid_tokens = self.validate_tokens(tokens)
-        all_signals = []
-        
-        for token in valid_tokens:
-            try:
-                if context and "data" in context and token in context["data"]:
-                    raw_data = context["data"][token]
-                    df = pd.DataFrame(raw_data) if isinstance(raw_data, list) else raw_data
-                else:
-                    ohlcv = get_ohlcv_data(token, timeframe, limit=1000)
-                    if not ohlcv: continue
-                    df = pd.DataFrame(ohlcv)
+        data_map = context["data"]
+
+        for token in tokens:
+            df = data_map.get(token)
+            if df is None or df.empty:
+                continue
+            
+            # Necesitamos al menos ~30 velas para BB y RSI
+            if len(df) < 50:
+                continue
+
+            # Copia defensiva
+            d = df.copy()
+
+            # --- Indicadores Técnicos ---
+            # Bollinger Bands (20, 2.0)
+            bb = ta.bbands(d['close'], length=20, std=2.0)
+            if bb is None: continue
+            
+            # RSI (14)
+            rsi = ta.rsi(d['close'], length=14)
+            if rsi is None: continue
+
+            # Unir al DF
+            # Nombres por defecto pandas_ta: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0, RSI_14
+            d = pd.concat([d, bb, rsi], axis=1)
+            
+            # --- Lógica de Señal (NO REPAINTING) ---
+            # Usamos la ÚLTIMA VELA CERRADA.
+            # En backtest, el engine nos pasa datos hasta 'i', siendo iloc[-1] la vela "actual" o recién cerrada.
+            # Asumiremos que iloc[-1] es la vela sobre la que tomamos decisión (Close price defined).
+            
+            row = d.iloc[-1]
+            
+            close = row['close']
+            lower = row['BBL_20_2.0']
+            upper = row['BBU_20_2.0']
+            mid   = row['BBM_20_2.0'] # Media Simple 20
+            rsi_val = row['RSI_14']
+            
+            if pd.isna(lower) or pd.isna(rsi_val):
+                continue
+            
+            # Determinar Timestamp correcto
+            # Si 'timestamp_dt' existe (backend legacy), usarlo, sino convertir
+            ts_val = datetime.utcnow()
+            if 'timestamp' in d.columns:
+                try:
+                    # El timestamp de la vela suele ser el Open Time.
+                    # La señal se emite al cierre, así que es válida AHORA.
+                    ts_raw = d.index[-1] if isinstance(d.index[-1], pd.Timestamp) else pd.to_datetime(d['timestamp'].iloc[-1], unit='ms')
+                    ts_val = ts_raw
+                except:
+                    pass
+            
+            signal = None
+            
+            # --- Setup LONG ---
+            # --- Setup LONG ---
+            # Precio < Banda Inferior & RSI < 35 (Sobrevendido)
+            if close < lower and rsi_val < 35:
+                dist = mid - close
+                # Conservative TP: 80% of distance to mean (accounts for MA moving down)
+                tp = close + (dist * 0.8) 
+                sl = close - (dist * 0.6) # Stop un poco por debajo
                 
-                if "timestamp" in df.columns:
-                    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-                    df.set_index("timestamp", inplace=True)
-                    
-                all_signals.extend(self.analyze(df, token, timeframe))
-            except Exception as e:
-                print(f"Error in BBMR for {token}: {e}")
+                signal = Signal(
+                    timestamp=ts_val,
+                    token=token,
+                    timeframe=timeframe,
+                    direction="long",
+                    entry=round(close, 2),
+                    tp=round(tp, 2),
+                    sl=round(sl, 2),
+                    confidence=0.85, 
+                    rationale=f"Reversion Long: Price < LowerBB ({lower:.2f}) & RSI {rsi_val:.1f} < 35",
+                    source="bb_mean_reversion",
+                    strategy_id=self.metadata().id,
+                    mode="CUSTOM",
+                    category="REVERSION",
+                    extra={
+                        "rsi": round(rsi_val, 1),
+                        "bb_lower": round(lower, 2),
+                        "bb_upper": round(upper, 2)
+                    }
+                )
+
+            # --- Setup SHORT ---
+            # Precio > Banda Superior & RSI > 65 (Sobrecomprado)
+            elif close > upper and rsi_val > 65:
+                dist = close - mid
+                # Conservative TP: 80% of distance to mean
+                tp = close - (dist * 0.8)
+                sl = close + (dist * 0.6)
                 
-        return all_signals
+                signal = Signal(
+                    timestamp=ts_val,
+                    token=token,
+                    timeframe=timeframe,
+                    direction="short",
+                    entry=round(close, 2),
+                    tp=round(tp, 2),
+                    sl=round(sl, 2),
+                    confidence=0.85,
+                    rationale=f"Reversion Short: Price > UpperBB ({upper:.2f}) & RSI {rsi_val:.1f} > 65",
+                    source="bb_mean_reversion",
+                    strategy_id=self.metadata().id,
+                    mode="CUSTOM",
+                    category="REVERSION",
+                    extra={
+                        "rsi": round(rsi_val, 1),
+                        "bb_lower": round(lower, 2),
+                        "bb_upper": round(upper, 2)
+                    }
+                )
+
+            if signal:
+                signals.append(signal)
+
+        return signals

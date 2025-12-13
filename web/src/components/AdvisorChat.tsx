@@ -1,162 +1,188 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Loader, MessageSquare } from 'lucide-react';
-import { API_BASE_URL } from '../constants';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { api } from '../services/api';
+import { ChatMessage } from '../types';
 
 interface AdvisorChatProps {
-  token?: string;
-  context?: any; // Signal context passed from parent
-  onClose?: () => void;
+  currentToken?: string;
+  currentTimeframe?: string;
 }
 
-export const AdvisorChat: React.FC<AdvisorChatProps> = ({ token, context, onClose }) => {
+export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentTimeframe }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Initial welcome message from assistant
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
+      id: 'welcome',
       role: 'assistant',
-      content: token
-        ? `Hola. Veo que estás analizando ${token}. ¿Qué te preocupa de esta posición?`
-        : 'Hola. Soy tu Asesor de Riesgo. ¿En qué puedo ayudarte hoy?'
+      content: '¿En qué puedo ayudarte a evaluar riesgos hoy?',
+      type: 'text',
+      timestamp: new Date().toISOString()
     }
   ]);
+
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isOpen]);
 
-  const sendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim() || loading) return;
+  // Listen for 'open-advisor-chat' events from other components
+  useEffect(() => {
+    const handleOpenEvent = (e: CustomEvent) => {
+      setIsOpen(true);
+    };
 
-    const userMsg = input.trim();
+    window.addEventListener('open-advisor-chat', handleOpenEvent as EventListener);
+    return () => window.removeEventListener('open-advisor-chat', handleOpenEvent as EventListener);
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      type: 'text',
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setLoading(true);
+    setIsLoading(true);
 
     try {
-      const payload = {
-        messages: [...messages, { role: 'user', content: userMsg }].map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        context: {
-          token: token || null,
-          timeframe: context?.timeframe || '1h',
-          signal_data: context || null
-        }
+      const context = {
+        token: currentToken,
+        timeframe: currentTimeframe
       };
 
-      const res = await fetch(`${API_BASE_URL}/advisor/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // Use the dedicated service method
+      // api.sendAdvisorChat handles the /chat endpoint logic
+      const responseMsg = await api.sendAdvisorChat(
+        [...messages, userMsg],
+        context
+      );
 
-      const data = await res.json();
+      setMessages(prev => [...prev, responseMsg]);
 
-      if (res.ok) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, tuve un problema conectando con el cerebro central." }]);
-      }
     } catch (error) {
-      console.error("Chat Error:", error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Error de conexión. Inténtalo de nuevo." }]);
+      console.error('Advisor chat error:', error);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: '❌ Error al conectar con el Asesor. Revisa los logs.',
+        type: 'text',
+        timestamp: new Date().toISOString()
+      }]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border-l border-slate-800 shadow-2xl w-full md:w-[400px]">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-lg">
-            <Bot size={20} className="text-white" />
+    <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
+      {/* Chat Window */}
+      {isOpen && (
+        <div className="mb-4 w-80 md:w-96 h-96 bg-[#0B1121] border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+          {/* Header */}
+          <div className="bg-gray-800/50 p-3 border-b border-gray-700 flex justify-between items-center backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🛡️</span>
+              <h3 className="font-bold text-gray-100">Risk Advisor AI</h3>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+            >
+              ✕
+            </button>
           </div>
-          <div>
-            <h3 className="font-bold text-white text-sm">Advisor Chat</h3>
-            <p className="text-xs text-slate-400">AI Risk Manager</p>
-          </div>
-        </div>
-        {onClose && (
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400">
-            <X size={18} />
-          </button>
-        )}
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-full bg-indigo-600/20 flex items-center justify-center flex-shrink-0 mt-1">
-                <Bot size={14} className="text-indigo-400" />
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            {messages.map((msg, idx) => {
+              const isUser = msg.role === 'user';
+              return (
+                <div
+                  key={msg.id || idx}
+                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg p-3 text-sm shadow-md ${isUser
+                        ? 'bg-blue-600 text-white rounded-tr-none'
+                        : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'
+                      }`}
+                  >
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-800 text-gray-400 rounded-lg p-3 text-sm border border-gray-700 animate-pulse">
+                  <span className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-0"></span>
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-100"></span>
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-200"></span>
+                  </span>
+                </div>
               </div>
             )}
-
-            <div className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                ? 'bg-indigo-600 text-white rounded-br-none'
-                : 'bg-slate-800 text-slate-300 rounded-bl-none border border-slate-700'
-              }`}>
-              {msg.content}
-            </div>
-
-            {msg.role === 'user' && (
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 mt-1">
-                <User size={14} className="text-slate-300" />
-              </div>
-            )}
+            <div ref={messagesEndRef} />
           </div>
-        ))}
 
-        {loading && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-600/20 flex items-center justify-center flex-shrink-0">
-              <Bot size={14} className="text-indigo-400" />
-            </div>
-            <div className="bg-slate-800 p-3 rounded-2xl rounded-bl-none border border-slate-700 flex items-center gap-2">
-              <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></span>
-              <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-75"></span>
-              <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-150"></span>
+          {/* Input Area */}
+          <div className="p-3 bg-gray-800/50 border-t border-gray-700 backdrop-blur-sm">
+            <div className="flex gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={currentToken ? `Pregunta sobre ${currentToken}...` : "Analizar riesgo..."}
+                className="flex-1 bg-[#1E293B] text-white border border-gray-600 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500 resize-none h-10 py-2.5 scrollbar-none"
+                rows={1}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className={`px-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 transition-colors shadow-lg ${(isLoading || !input.trim()) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+              >
+                ➤
+              </button>
             </div>
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <form onSubmit={sendMessage} className="p-4 border-t border-slate-800 bg-slate-900">
-        <div className="relative flex items-center gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={token ? `Ask about ${token}...` : "Type a message..."}
-            className="flex-1 bg-slate-800 border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? <Loader size={18} className="animate-spin" /> : <Send size={18} />}
-          </button>
         </div>
-      </form>
+      )}
+
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`group flex items-center gap-2 px-4 py-3 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 ${isOpen
+            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25'
+          }`}
+      >
+        <span className="text-2xl group-hover:rotate-12 transition-transform">🛡️</span>
+        {!isOpen && <span className="font-bold">Advisor Chat</span>}
+      </button>
     </div>
   );
 };

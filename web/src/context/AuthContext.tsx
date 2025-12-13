@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import { api } from '../services/api';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -22,35 +23,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         const checkAuth = async () => {
-            await new Promise(resolve => setTimeout(resolve, 500));
             const token = localStorage.getItem('auth_token');
-            const savedSignals = localStorage.getItem('followed_signals');
-
-            if (token || true) {
-                setIsAuthenticated(true);
-                setUserProfile({
-                    user: {
-                        id: 'demo-user',
-                        name: 'Commander',
-                        email: 'demo@tradercopilot.com',
-                        role: 'user',
-                        subscription_status: 'active',
-                        onboarding_completed: localStorage.getItem('onboarding_completed') === 'true',
-                        avatar_url: 'https://ui-avatars.com/api/?name=Commander&background=10b981&color=fff'
-                    },
-                    preferences: {
-                        favorite_tokens: ['eth', 'btc', 'sol'],
-                        default_timeframe: '30m',
-                        notifications: {
-                            trade_updates: true,
-                            market_volatility: true,
-                            system_status: true
+            if (token) {
+                try {
+                    const user = await api.getMe();
+                    setUserProfile({
+                        user: {
+                            ...user,
+                            subscription_status: 'active',
+                            onboarding_completed: false, // You might want to fetch this too
+                            avatar_url: `https://ui-avatars.com/api/?name=${user.name}&background=10b981&color=fff`
+                        },
+                        preferences: {
+                            favorite_tokens: ['eth', 'btc', 'sol'],
+                            default_timeframe: '30m',
+                            notifications: {
+                                trade_updates: true,
+                                market_volatility: true,
+                                system_status: true
+                            }
+                        },
+                        portfolio: {
+                            followed_signals: []
                         }
-                    },
-                    portfolio: {
-                        followed_signals: savedSignals ? JSON.parse(savedSignals) : []
-                    }
-                });
+                    });
+                    setIsAuthenticated(true);
+                } catch (err) {
+                    console.error('Session expired or invalid', err);
+                    localStorage.removeItem('auth_token');
+                }
             }
             setIsLoading(false);
         };
@@ -58,35 +59,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         checkAuth();
     }, []);
 
-    const login = async () => {
+    const login = async (email?: string, password?: string) => {
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsAuthenticated(true);
-        setUserProfile({
-            user: {
-                id: 'demo-user',
-                name: 'Commander',
-                email: 'demo@tradercopilot.com',
-                role: 'user',
-                subscription_status: 'active',
-                onboarding_completed: false,
-                avatar_url: 'https://ui-avatars.com/api/?name=Commander&background=10b981&color=fff'
-            },
-            preferences: {
-                favorite_tokens: ['eth', 'btc'],
-                default_timeframe: '30m',
-                notifications: {
-                    trade_updates: true,
-                    market_volatility: true,
-                    system_status: true
-                }
-            },
-            portfolio: {
-                followed_signals: []
+        try {
+            // For demo simplicity, we still support the mock bypass if no creds are passed, 
+            // but if creds ARE passed, we use real API.
+            if (email && password) {
+                const data = await api.login(email, password);
+                localStorage.setItem('auth_token', data.access_token);
+
+                // Fetch profile immediately
+                const user = data.user;
+                setUserProfile({
+                    user: {
+                        ...user,
+                        subscription_status: 'active',
+                        onboarding_completed: false,
+                        avatar_url: `https://ui-avatars.com/api/?name=${user.name}&background=10b981&color=fff`
+                    },
+                    preferences: {
+                        favorite_tokens: ['eth', 'btc'],
+                        default_timeframe: '30m',
+                        notifications: { trade_updates: true, market_volatility: true, system_status: true }
+                    },
+                    portfolio: { followed_signals: [] }
+                });
+                setIsAuthenticated(true);
+            } else {
+                throw new Error("Credentials required");
             }
-        });
-        localStorage.setItem('auth_token', 'demo-token');
-        setIsLoading(false);
+        } catch (err) {
+            console.error('Login failed', err);
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const logout = () => {
