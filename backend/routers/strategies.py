@@ -20,9 +20,14 @@ from models_db import StrategyConfig
 from strategies.registry import get_registry
 from core.signal_logger import log_signal
 from pydantic import BaseModel
-
+from marketplace_config import MARKETPLACE_PERSONAS, get_active_strategies
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
+
+@router.get("/marketplace", response_model=List[Dict[str, Any]])
+async def get_marketplace():
+    """Retorna la configuración de 'Personas' del Marketplace."""
+    return MARKETPLACE_PERSONAS
 
 
 # === Models ===

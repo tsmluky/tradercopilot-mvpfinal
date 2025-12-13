@@ -9,17 +9,17 @@ import sys
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), 'backend'))
 
-from strategies.TrendFollowingNative import TrendFollowingNative
+from strategies.HyperScalpStrategy import HyperScalpStrategy
 from market_data_api import get_ohlcv_data
 
 async def run_native_benchmark():
-    print("🚀 Benchmarking TrendFollowingNative...")
+    print("🚀 Benchmarking HyperScalpStrategy (High Frequency)...")
     
-    tokens = ["BTC", "ETH", "SOL", "AVAX"]
-    timeframes = ["1h", "4h", "1d"]
-    days = 180
+    tokens = ["DOT", "UNI", "ETH", "SOL"]
+    timeframes = ["5m", "15m"]
+    days = 7 # Test 7 days to get daily avg
     
-    strategy = TrendFollowingNative()
+    strategy = HyperScalpStrategy()
     results = []
     
     for token in tokens:
