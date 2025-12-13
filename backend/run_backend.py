@@ -19,8 +19,8 @@ if __name__ == "__main__":
     # We use "main:app" string to enable reload support if needed, but here simple start
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
-        port=8000,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000)),
         reload=True,  # Useful for dev
         log_level="info"
     )
