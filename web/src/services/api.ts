@@ -484,6 +484,19 @@ export async function fetchMarketplace(): Promise<any[]> {
   }
 }
 
+export async function fetchPersonaHistory(personaId: string): Promise<any[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/strategies/marketplace/${personaId}/history`, {
+      method: "GET"
+    });
+    if (!res.ok) throw new Error("Failed to fetch history");
+    return res.json();
+  } catch (err) {
+    console.error("fetchPersonaHistory failed", err);
+    return [];
+  }
+}
+
 export const api = {
   analyzeLite,
   analyzePro,
@@ -496,5 +509,6 @@ export const api = {
   login,
   register,
   getMe,
-  fetchMarketplace
+  fetchMarketplace,
+  fetchPersonaHistory
 };

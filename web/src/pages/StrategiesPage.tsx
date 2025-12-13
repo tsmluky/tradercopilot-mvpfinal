@@ -76,7 +76,8 @@ export const StrategiesPage: React.FC = () => {
                     return (
                         <div
                             key={persona.id}
-                            className={`group relative bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 overflow-hidden`}
+                            className={`group relative bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 overflow-hidden cursor-pointer`}
+                            onClick={() => window.location.href = `/strategies/${persona.id}`}
                         >
                             {/* Background Glow */}
                             <div className={`absolute -inset-0.5 bg-gradient-to-br ${theme.split(' ')[0]} opacity-0 group-hover:opacity-20 transition-opacity blur-2xl`} />
@@ -123,14 +124,15 @@ export const StrategiesPage: React.FC = () => {
                             {/* Action Button */}
                             <button
                                 className={`w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 hover:border-${persona.color}-500 group-hover:from-${persona.color}-900/50 group-hover:to-${persona.color}-800/50 transition-all flex items-center justify-center gap-2 relative z-10`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Future: Toggle Active here directly?
+                                    window.location.href = `/strategies/${persona.id}`;
+                                }}
                             >
                                 <span className={persona.is_active ? 'text-emerald-400' : 'text-slate-500'}>
-                                    {persona.is_active ? 'ACTIVE • RUNNING' : 'ACTIVATE'}
+                                    VIEW PROFILE & HISTORY
                                 </span>
-                                {persona.is_active && <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>}
                             </button>
                         </div>
                     );

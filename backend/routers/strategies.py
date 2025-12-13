@@ -27,7 +27,53 @@ router = APIRouter(prefix="/strategies", tags=["strategies"])
 @router.get("/marketplace", response_model=List[Dict[str, Any]])
 async def get_marketplace():
     """Retorna la configuración de 'Personas' del Marketplace."""
-    return MARKETPLACE_PERSONAS
+from models_db import Signal, SignalEvaluation
+
+@router.get("/marketplace/{persona_id}/history")
+async def get_persona_history(persona_id: str, db: Session = Depends(get_db)):
+    """
+    Obtiene el historial de señales generadas por una Persona específica.
+    Filtra por source="Marketplace:{persona_id}"
+    """
+    # Validar persona
+    valid_ids = [p["id"] for p in MARKETPLACE_PERSONAS]
+    if persona_id not in valid_ids:
+        # Fallback para permitir debugear IDs viejos si existen
+        # raise HTTPException(status_code=404, detail="Persona not found")
+        pass
+
+    target_source = f"Marketplace:{persona_id}"
+    
+    # Query Signals sorted by time desc
+    signals = db.query(Signal).filter(
+        Signal.source == target_source
+    ).order_by(Signal.timestamp.desc()).limit(100).all()
+    
+    # Enriquecer con evaluación si existe
+    history = []
+    for sig in signals:
+        eval_data = None
+        if sig.evaluation:
+            eval_data = {
+                "result": sig.evaluation.result,
+                "pnl_r": sig.evaluation.pnl_r,
+                "exit_price": sig.evaluation.exit_price,
+                "closed_at": sig.evaluation.evaluated_at.isoformat() if sig.evaluation.evaluated_at else None
+            }
+            
+        history.append({
+            "id": sig.id,
+            "timestamp": sig.timestamp.isoformat() + "Z",
+            "token": sig.token,
+            "direction": sig.direction,
+            "entry": sig.entry,
+            "tp": sig.tp,
+            "sl": sig.sl,
+            "result": eval_data
+        })
+        
+    return history
+
 
 
 # === Models ===

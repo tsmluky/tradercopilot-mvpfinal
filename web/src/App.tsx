@@ -4,6 +4,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { DashboardHome } from './components/dashboard/DashboardHome';
 import { AnalysisPage } from './pages/AnalysisPage';
 import { StrategiesPage } from './pages/StrategiesPage';
+import { StrategyDetailsPage } from './pages/StrategyDetailsPage';
 import { SignalsPage } from './pages/SignalsPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { LogsPage } from './pages/LogsPage';
@@ -56,6 +57,7 @@ const App: React.FC = () => {
           />
           <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
           <Route path="/strategies" element={<ProtectedRoute><StrategiesPage /></ProtectedRoute>} />
+          <Route path="/strategies/:id" element={<ProtectedRoute><StrategyDetailsPage /></ProtectedRoute>} />
           <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
