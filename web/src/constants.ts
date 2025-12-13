@@ -1,18 +1,13 @@
-// SMART URL DETECTION - Forced Update 11:08
+// SMART URL DETECTION - Strict Mode (Ignore Env Vars)
 const getBaseUrl = () => {
-  // 1. If Vercel/Build Env Var is explicitly set, use it.
-  if ((import.meta as any).env?.VITE_API_BASE_URL) {
-    return (import.meta as any).env.VITE_API_BASE_URL;
-  }
-
-  // 2. If running on Localhost, use local backend.
+  // 1. If running on Localhost, use local backend.
   if (typeof window !== "undefined") {
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
       return "http://127.0.0.1:8000";
     }
   }
 
-  // 3. Fallback for Production (Railway)
+  // 2. FORCE Production (Railway)
   return "https://tradercopilot-mvpfinal-production.up.railway.app";
 };
 
