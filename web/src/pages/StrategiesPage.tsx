@@ -1,205 +1,149 @@
 import React, { useEffect, useState } from 'react';
-import { StrategyCard } from '../components/dashboard/StrategyCard';
-import { API_BASE_URL } from '../constants';
-import { RefreshCw, Play, X, ArrowRight } from 'lucide-react';
+import { api } from '../services/api';
+import { Play, TrendingUp, Zap, Shield, Activity, RefreshCw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-interface StrategySignal {
-    token: string;
-    direction: string;
-    entry: number;
-    tp: number;
-    sl: number;
-    confidence: number;
+interface Persona {
+    id: string;
+    name: string;
+    symbol: string;
+    timeframe: string;
+    description: string;
+    risk_level: string;
+    expected_roi: string;
+    win_rate: string;
+    frequency: string;
+    color: string;
+    is_active: boolean;
 }
 
 export const StrategiesPage: React.FC = () => {
-    const [strategies, setStrategies] = useState<any[]>([]);
+    const [personas, setPersonas] = useState<Persona[]>([]);
     const [loading, setLoading] = useState(true);
-    const [executingId, setExecutingId] = useState<string | null>(null);
-    const [scanResults, setScanResults] = useState<{ strategy: string, signals: StrategySignal[] } | null>(null);
 
-    const fetchStrategies = async () => {
+    const fetchPersonas = async () => {
         setLoading(true);
         try {
-            // 1. Trigger evaluation to update stats first
-            await fetch(`${API_BASE_URL}/analyze/evaluate`, { method: 'POST' });
-
-            // 2. Fetch updated strategies
-            const res = await fetch(`${API_BASE_URL}/strategies`);
-            if (res.ok) {
-                setStrategies(await res.json());
-            }
+            const data = await api.fetchMarketplace();
+            setPersonas(data);
         } catch (error) {
-            console.error("Error fetching strategies:", error);
+            console.error(error);
+            toast.error("Failed to load marketplace");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleRunStrategy = async (strategyId: string, timeframe: string) => {
-        setExecutingId(strategyId);
-        try {
-            const res = await fetch(`${API_BASE_URL}/strategies/${strategyId}/execute`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tokens: ["BTC", "ETH", "SOL"],
-                    timeframe: timeframe || "1h",
-                    context: {}
-                })
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                setScanResults({
-                    strategy: strategyId,
-                    signals: data.signals || []
-                });
-            } else {
-                alert(`Error: ${data.detail}`);
-            }
-        } catch (error) {
-            console.error("Error running strategy:", error);
-            alert("Failed to execute strategy command.");
-        } finally {
-            setExecutingId(null);
-        }
-    };
-
     useEffect(() => {
-        fetchStrategies();
+        fetchPersonas();
     }, []);
 
+    const getColorClass = (color: string) => {
+        const map: any = {
+            'amber': 'from-amber-500/20 to-orange-600/20 border-amber-500/50 text-amber-500',
+            'cyan': 'from-cyan-500/20 to-blue-600/20 border-cyan-500/50 text-cyan-500',
+            'slate': 'from-slate-500/20 to-gray-600/20 border-slate-500/50 text-slate-400',
+            'indigo': 'from-indigo-500/20 to-violet-600/20 border-indigo-500/50 text-indigo-500',
+        };
+        return map[color] || map['slate'];
+    };
+
     return (
-        <div className="space-y-6 relative">
-            <div className="flex justify-between items-center">
+        <div className="space-y-8 animate-fade-in relative min-h-screen">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-100">Strategy Portfolio</h2>
-                    <p className="text-slate-400">Manage and monitor your automated trading strategies.</p>
+                    <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
+                        Strategy Marketplace
+                    </h1>
+                    <p className="text-slate-400 mt-2 text-lg">
+                        Select your trading agents. Each persona runs autonomously with distinct risk profiles.
+                    </p>
                 </div>
                 <button
-                    onClick={fetchStrategies}
-                    className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-colors"
+                    onClick={fetchPersonas}
+                    className="p-3 bg-slate-800/50 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50 hover:border-indigo-500/50 group"
                 >
-                    <RefreshCw className="w-5 h-5" />
+                    <RefreshCw className={`w-5 h-5 text-slate-400 group-hover:text-white transition-colors ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {strategies.map((strat, idx) => (
-                        <div key={idx} className="relative group">
-                            <StrategyCard
-                                name={strat.name}
-                                timeframe={strat.default_timeframe}
-                                type={strat.mode === 'SCALPING' ? 'Scalping' : 'Trend'}
-                                winRate={Math.round(strat.win_rate * 100)}
-                                pnl={0}
-                                status={strat.enabled ? 'active' : 'standby'}
-                                description={strat.description}
-                            />
-                            {/* Overlay Actions */}
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => handleRunStrategy(strat.id, strat.default_timeframe)}
-                                    disabled={!!executingId}
-                                    className={`p-2 rounded-lg text-white shadow-lg transition-colors ${executingId === strat.id
-                                        ? 'bg-slate-600 cursor-not-allowed'
-                                        : 'bg-indigo-600 hover:bg-indigo-500'
-                                        }`}
-                                    title="Run Live Scan"
-                                >
-                                    {executingId === strat.id ? (
-                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
-                                    ) : (
-                                        <Play className="w-4 h-4 fill-current" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {/* Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {personas.map((persona) => {
+                    const theme = getColorClass(persona.color);
 
-            {/* Scan Results Modal */}
-            {scanResults && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[80vh]">
-                        <div className="p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-900 rounded-t-xl z-10">
-                            <div>
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Play className="w-4 h-4 text-emerald-400" />
-                                    Live Scan Results
-                                </h3>
-                                <p className="text-xs text-slate-400 uppercase tracking-wider font-mono mt-1">
-                                    Strategy: <span className="text-indigo-400">{scanResults.strategy}</span>
-                                </p>
+                    return (
+                        <div
+                            key={persona.id}
+                            className={`group relative bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 hover:border-slate-600 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 overflow-hidden`}
+                        >
+                            {/* Background Glow */}
+                            <div className={`absolute -inset-0.5 bg-gradient-to-br ${theme.split(' ')[0]} opacity-0 group-hover:opacity-20 transition-opacity blur-2xl`} />
+
+                            {/* Header */}
+                            <div className="flex justify-between items-start mb-6 relative z-10">
+                                <div>
+                                    <h3 className={`text-2xl font-black text-white tracking-wide`}>
+                                        {persona.name}
+                                    </h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold bg-slate-800 border ${theme.split(' ')[2]} ${theme.split(' ')[3]}`}>
+                                            {persona.symbol}
+                                        </span>
+                                        <span className="text-xs text-slate-500 font-mono uppercase">
+                                            {persona.timeframe}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className={`p-3 rounded-full bg-slate-800/50 border ${theme.split(' ')[2]}`}>
+                                    {persona.risk_level === 'High' ? <Zap className={`w-6 h-6 ${theme.split(' ')[3]}`} /> :
+                                        persona.risk_level === 'Medium' ? <Activity className={`w-6 h-6 ${theme.split(' ')[3]}`} /> :
+                                            <Shield className={`w-6 h-6 ${theme.split(' ')[3]}`} />}
+                                </div>
                             </div>
+
+                            {/* Description */}
+                            <p className="text-slate-400 text-sm mb-6 h-10 line-clamp-2 relative z-10">
+                                {persona.description}
+                            </p>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
+                                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                                    <span className="text-xs text-slate-500 block mb-1">Expected ROI</span>
+                                    <span className={`text-xl font-bold ${theme.split(' ')[3]}`}>{persona.expected_roi}</span>
+                                </div>
+                                <div className="p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                                    <span className="text-xs text-slate-500 block mb-1">Win Rate</span>
+                                    <span className="text-xl font-bold text-white">{persona.win_rate}</span>
+                                </div>
+                            </div>
+
+                            {/* Action Button */}
                             <button
-                                onClick={() => setScanResults(null)}
-                                className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+                                className={`w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 hover:border-${persona.color}-500 group-hover:from-${persona.color}-900/50 group-hover:to-${persona.color}-800/50 transition-all flex items-center justify-center gap-2 relative z-10`}
                             >
-                                <X className="w-5 h-5" />
+                                <span className={persona.is_active ? 'text-emerald-400' : 'text-slate-500'}>
+                                    {persona.is_active ? 'ACTIVE • RUNNING' : 'ACTIVATE'}
+                                </span>
+                                {persona.is_active && <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>}
                             </button>
                         </div>
+                    );
+                })}
+            </div>
 
-                        <div className="p-6 overflow-y-auto space-y-4">
-                            {scanResults.signals.length === 0 ? (
-                                <div className="text-center py-8 text-slate-500">
-                                    <p>No active signals found for ths strategy right now.</p>
-                                    <p className="text-sm mt-2">Try checking a different timeframe or asset.</p>
-                                </div>
-                            ) : (
-                                <div className="grid gap-4">
-                                    {scanResults.signals.map((sig, i) => (
-                                        <div key={i} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 hover:border-indigo-500/50 transition-colors">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="font-bold text-xl text-white">{sig.token}</span>
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${sig.direction === 'long'
-                                                        ? 'bg-emerald-500/20 text-emerald-400'
-                                                        : 'bg-rose-500/20 text-rose-400'
-                                                        }`}>
-                                                        {sig.direction}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-xs text-slate-500 block">Entry Point</span>
-                                                    <span className="font-mono text-white">{sig.entry}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-4 text-sm text-slate-400 mt-3 font-mono">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-xs text-slate-600">ATP</span>
-                                                    <span className="text-emerald-400">{sig.tp}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-xs text-slate-600">SL</span>
-                                                    <span className="text-rose-400">{sig.sl}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-4 border-t border-slate-800 bg-slate-900/50 rounded-b-xl flex justify-end">
-                            <button
-                                onClick={() => setScanResults(null)}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
-                            >
-                                Done
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Disclaimer */}
+            <div className="mt-12 p-6 bg-slate-900/30 border border-slate-800/50 rounded-xl text-center max-w-2xl mx-auto">
+                <p className="text-xs text-slate-500">
+                    Past performance is not indicative of future results. All strategies run autonomously based on technical validation.
+                    Scalping strategies may be affected by market volatility and spread costs.
+                </p>
+            </div>
         </div>
     );
 };

@@ -471,6 +471,19 @@ export async function getMe(): Promise<UserProfile['user']> {
 // API pública agrupada
 // =========================
 
+export async function fetchMarketplace(): Promise<any[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/strategies/marketplace`, {
+      method: 'GET'
+    });
+    if (!res.ok) throw new Error('Failed to fetch marketplace');
+    return res.json();
+  } catch (err) {
+    console.warn("fetchMarketplace failed", err);
+    return [];
+  }
+}
+
 export const api = {
   analyzeLite,
   analyzePro,
@@ -482,5 +495,6 @@ export const api = {
   sendAdvisorChat,
   login,
   register,
-  getMe
+  getMe,
+  fetchMarketplace
 };
