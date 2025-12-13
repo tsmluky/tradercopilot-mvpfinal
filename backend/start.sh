@@ -16,7 +16,6 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)
 python scheduler.py &
 
 # 2. Start the API
-# Force port 8000 ONLY if not provided by Railway (User Request)
-export PORT=${PORT:-8000}
-echo "Using PORT: $PORT"
-uvicorn main:app --host 0.0.0.0 --port $PORT
+# Force port 8000 to match Railway Networking Config (Hardcoded)
+echo "Using Hardcoded PORT: 8000"
+uvicorn main:app --host 0.0.0.0 --port 8000
