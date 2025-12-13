@@ -27,22 +27,24 @@ if DATABASE_URL:
             DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         
         # For async, use postgresql+psycopg://
-        # We switch to psycopg 3 ("postgresql+psycopg://") which uses libpq and is stable on Windows
-        if "postgresql://" in DATABASE_URL and "+psycopg" not in DATABASE_URL:
-             # Make sure we don't double-replace if it was already asyncpg
-             DATABASE_URL = DATABASE_URL.replace("+asyncpg", "") 
-             DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+        # For async, use postgresql+asyncpg://
+        if "postgresql://" in DATABASE_URL and "+asyncpg" not in DATABASE_URL:
+            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
         
-        # psycopg (v3) uses 'sslmode' param standardly, like psycopg2
-        if "rlwy.net" in DATABASE_URL and "sslmode" not in DATABASE_URL:
-             separator = "&" if "?" in DATABASE_URL else "?"
-             DATABASE_URL += f"{separator}sslmode=require"
-        
-        # Clean up any leftover asyncpg-specific params if they exist (unlikely but safe)
-        DATABASE_URL = DATABASE_URL.replace("ssl=require", "") # remove asyncpg specific param if present
+        # Asyncpg needs explicit SSL context on Windows often
+        async_connect_args = {}
+        if "rlwy.net" in DATABASE_URL:
+            import ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            async_connect_args["ssl"] = ctx
 
-        DATABASE_URL_SYNC = DATABASE_URL.replace("+psycopg", "")
-        DATABASE_URL_SYNC = DATABASE_URL_SYNC.replace("+asyncpg", "") # just in case
+        # Clean up URL params that might conflict
+        DATABASE_URL = DATABASE_URL.replace("ssl=require", "")
+        DATABASE_URL = DATABASE_URL.replace("sslmode=require", "")
+
+        DATABASE_URL_SYNC = DATABASE_URL.replace("+asyncpg", "")
 
         # Fix for Railway/Psycopg2: Force sslmode=require
         if "rlwy.net" in DATABASE_URL_SYNC and "sslmode" not in DATABASE_URL_SYNC:
@@ -73,7 +75,8 @@ if "sqlite" in DATABASE_URL:
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    future=True
+    future=True,
+    connect_args=async_connect_args if "postgresql" in DATABASE_URL else {}
 )
 
 AsyncSessionLocal = sessionmaker(
