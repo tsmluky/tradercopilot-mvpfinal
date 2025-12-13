@@ -166,11 +166,11 @@ class TrendFollowingNative(Strategy):
             try:
                 if context and "data" in context and token in context["data"]:
                     raw = context["data"][token]
-                    df = pd.DataFrame(raw)
+                    df = pd.DataFrame(raw, columns=["timestamp", "open", "high", "low", "close", "volume"])
                 else:
                     raw = get_ohlcv_data(token, timeframe, limit=300)
                     if not raw: continue
-                    df = pd.DataFrame(raw)
+                    df = pd.DataFrame(raw, columns=["timestamp", "open", "high", "low", "close", "volume"])
                 
                 if "timestamp" in df.columns:
                     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
