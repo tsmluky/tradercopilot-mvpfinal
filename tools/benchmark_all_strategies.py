@@ -22,17 +22,16 @@ from market_data_api import get_ohlcv_data
 # Edit these to customize your benchmark
 
 # --- Set A: TREND FOLLOWING ---
-TREND_STRATEGIES = ['donchian', 'donchian_v2', 'ma_cross', 'supertrend_flow_v1']
+# Names must match the MODULE name (filename) in backend/strategies/
+TREND_STRATEGIES = ['donchian', 'DonchianBreakoutV2', 'ma_cross', 'supertrend_flow']
 TREND_TOKENS = ['BTC', 'ETH', 'SOL', 'AVAX', 'BNB', 'ADA', 'XRP', 'DOGE', 'NEAR', 'ARB']
 TREND_TIMEFRAMES = ['1h', '4h', '1d']
 
 # --- Set B: MEAN REVERSION (Intraday focus) ---
-REVERSION_STRATEGIES = ['bb_mean_reversion', 'rsi_divergence', 'vwap_intraday_v1']
+REVERSION_STRATEGIES = ['bb_mean_reversion', 'rsi_divergence', 'vwap_intraday']
 REVERSION_TOKENS = ['MATIC', 'LINK', 'DOT', 'UNI', 'LTC', 'SOL', 'ETH', 'AVAX', 'APE', 'RUNE']
 REVERSION_TIMEFRAMES = ['5m', '15m', '30m', '1h']
 
-DURATIONS = [30, 90] # Reduced max duration to 90d to keep data size manageable for lower TFs? Or keep 180? Let's stick to 180 but maybe warn. Actually user said "abanico grande". Let's use [30, 180] but handle 5m 180d carefully (lots of candles).
-# Re-setting durations to be safe but comprehensive
 DURATIONS = [45, 180] 
 INITIAL_CAPITAL = 1000
 
@@ -50,7 +49,14 @@ def get_cached_data(token: str, timeframe: str, days: int) -> List[Dict]:
         start = time.time()
         
         # Calculate limit
-        candles_per_day = {'15m': 96, '1h': 24, '4h': 6}
+        candles_per_day = {
+            '5m': 288,
+            '15m': 96, 
+            '30m': 48,
+            '1h': 24, 
+            '4h': 6,
+            '1d': 1
+        }
         limit = days * candles_per_day.get(timeframe, 24)
         
         data = get_ohlcv_data(token, timeframe, limit=limit)
@@ -70,12 +76,51 @@ def save_result_incremental(result: Dict, csv_path: str):
             writer.writeheader()
         writer.writerow(result)
 
+def get_existing_completed_tests(csv_path: str) -> set:
+    """Read existing CSV to find completed tests."""
+    completed_keys = set()
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # Key: strategy|token|timeframe|days
+                    key = f"{row['strategy']}|{row['token']}|{row['timeframe']}|{row['days']}"
+                    # Only skip if it was SUCCESS or if we want to skip failed ones too?
+                    # Let's retry failed ones, skip SUCCESS.
+                    if row.get('status') == 'SUCCESS':
+                        completed_keys.add(key)
+        except Exception as e:
+            print(f"⚠️ Error reading existing CSV: {e}")
+    return completed_keys
+
 def run_benchmark():
     """Run optimized benchmark with incremental saves."""
     
     print("=" * 80)
     print("🏆 STRATEGY BENCHMARK SUITE - OPTIMIZED")
     print("=" * 80)
+    
+    # Output file - reuse the latest one or create new?
+    # User loop wants to "continue". We should probably search for the latest file or use a fixed one.
+    # For now let's try to find the most recent benchmark file to resume or create new.
+    # Actually, logic is cleaner if we just use one 'benchmark_results.csv' or the user-provided one.
+    # But files are timestamped. Let's list and pick the newest.
+    files = [f for f in os.listdir('.') if f.startswith('benchmark_results_') and f.endswith('.csv')]
+    files.sort(reverse=True)
+    
+    if files:
+        csv_path = files[0]
+        print(f"📂 Found existing results file: {csv_path}")
+        print(f"resume_mode: ON (Skipping entries marked SUCCESS)")
+    else:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        csv_path = f'benchmark_results_{timestamp}.csv'
+        print(f"🆕 Creating new results file: {csv_path}")
+
+    existing_completed = get_existing_completed_tests(csv_path)
+    print(f"⏭️  Already completed tests: {len(existing_completed)}")
+    
     print(f"Trend Set: {len(TREND_STRATEGIES)} strats x {len(TREND_TOKENS)} tokens x {len(TREND_TIMEFRAMES)} TFs")
     print(f"Reversion Set: {len(REVERSION_STRATEGIES)} strats x {len(REVERSION_TOKENS)} tokens x {len(REVERSION_TIMEFRAMES)} TFs")
     
@@ -88,17 +133,13 @@ def run_benchmark():
     print("=" * 80)
     print()
     
-    # Output file
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    csv_path = f'benchmark_results_{timestamp}.csv'
-    
     print(f"📊 Results will be saved to: {csv_path}")
     print(f"💾 Each test saves immediately (crash-safe!)\n")
     
     # Progress tracking
-    completed = 0
+    completed = len(existing_completed)
     failed = 0
-    results = []
+    results = [] # We might want to re-load results if we want a full summary at end
     
     # Pre-download all data
     print("=" * 80)
@@ -129,6 +170,13 @@ def run_benchmark():
             for token in tokens:
                 for timeframe in tfs:
                     for days in DURATIONS:
+                        
+                        # SKIP IF COMPLETED
+                        test_key = f"{strategy}|{token}|{timeframe}|{days}"
+                        if test_key in existing_completed:
+                            print(f"⏭️  Skipping {test_key} (Already SUCCESS)")
+                            continue
+
                         completed += 1
                         
                         print(f"[{completed}/{total_tests}] {strategy} | {token} | {timeframe} | {days}d", end=" ... ")
