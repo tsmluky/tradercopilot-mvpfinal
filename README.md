@@ -52,7 +52,7 @@ TraderCopilot operates on a **Service-Oriented Architecture** designed for high 
 
 ```mermaid
 graph TD
-    User([User]) <--> Client[React Frontend (Vite)]
+    User([User]) <--> Client[React Frontend Vite]
     Client <--> API[FastAPI Gateway]
     
     subgraph "Core Engine (Private)"
@@ -60,6 +60,7 @@ graph TD
         Controller <--> DB[(PostgreSQL)]
         
         Worker[Background Scheduler] --> Binance[(Binance Data)]
+        Worker --> Log[(Signal Logs)]
         Worker --> Analyzer[Strategy Engine]
         Analyzer --> DB
     end
