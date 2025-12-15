@@ -104,8 +104,11 @@ def get_ohlcv_data(
         
     except Exception as e:
         print(f"[MARKET DATA] 🚨 CCXT Error fetching {ccxt_symbol}: {e}")
-        print(f"[MARKET DATA] ⚠️ Attempting fallback to Mock Data (Random Walk)... Result quality will degrade.")
-        return generate_mock_ohlcv(symbol, limit)
+        # STRICT PRODUCTION MODE: Do NOT use mock data.
+        # Returning empty list will cause the scheduler to skip this iteration safely.
+        return []
+        # print(f"[MARKET DATA] ⚠️ Attempting fallback to Mock Data (Random Walk)... Result quality will degrade.")
+        # return generate_mock_ohlcv(symbol, limit)
 
 def generate_mock_ohlcv(symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
     """
@@ -150,6 +153,47 @@ def generate_mock_ohlcv(symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
     
     return ohlcv
 
+
+def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
+    """
+    Obtiene precio y cambio 24h para múltiples símbolos.
+    """
+    try:
+        exchange = ccxt.binance()
+        # Normalizar a BTC/USDT, ETH/USDT...
+        pairs = [f"{s.upper().replace('USDT','')}/USDT" for s in symbols]
+        
+        # Intentar fetch_tickers (Batch)
+        try:
+            tickers = exchange.fetch_tickers(pairs)
+        except:
+            # Fallback slow loop
+            tickers = {}
+            for p in pairs:
+                try:
+                    tickers[p] = exchange.fetch_ticker(p)
+                except:
+                    pass
+
+        summary = []
+        for p in pairs:
+            t = tickers.get(p)
+            if t:
+                # Calculate change if not provided
+                change = t.get('percentage')
+                if change is None and t.get('open'):
+                    change = ((t['last'] - t['open']) / t['open']) * 100
+                
+                summary.append({
+                    "symbol": p.replace("/USDT", ""),
+                    "price": t['last'],
+                    "change_24h": change or 0.0
+                })
+        return summary
+    except Exception as e:
+        print(f"[MARKET DATA] Error getting summary: {e}")
+        return []
+
 def get_current_price(symbol: str) -> Optional[float]:
     """
     Obtiene el precio actual de un símbolo.
@@ -161,3 +205,4 @@ def get_current_price(symbol: str) -> Optional[float]:
     except:
         pass
     return None
+

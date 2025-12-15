@@ -15,12 +15,13 @@ if __name__ == "__main__":
     
     print("[INFO] Starting TraderCopilot Backend via run_backend.py...")
     
+    # Import app directly to avoid import issues and ensure policy applies
+    from main import app
+    
     # Run Uvicorn programmatically
-    # We use "main:app" string to enable reload support if needed, but here simple start
     uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
+        app,
+        host="127.0.0.1",
         port=int(os.getenv("PORT", 8000)),
-        reload=True,  # Useful for dev
         log_level="info"
     )

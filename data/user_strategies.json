@@ -1,0 +1,17 @@
+[
+    {
+        "id": "test_doge_doge",
+        "name": "test doge",
+        "symbol": "DOGE",
+        "timeframe": "1h",
+        "strategy_id": "bb_mean_reversion",
+        "description": "doge test",
+        "risk_level": "Medium",
+        "expected_roi": "0%",
+        "win_rate": "14%",
+        "frequency": "Day Trader",
+        "color": "indigo",
+        "is_active": true,
+        "is_custom": true
+    }
+]

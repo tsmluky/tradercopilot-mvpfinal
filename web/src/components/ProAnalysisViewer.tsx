@@ -113,7 +113,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Search size={16} className="text-emerald-400" />
-              <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Contexto de Mercado</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Market Context</h3>
             </div>
             <div className="prose prose-invert prose-sm max-w-none text-slate-400 space-y-2">
               <ReactMarkdown>{sections.ctxt}</ReactMarkdown>
@@ -126,7 +126,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Activity size={16} className="text-sky-400" />
-              <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Análisis Técnico</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Technical Analysis</h3>
             </div>
             <div className="prose prose-invert prose-sm max-w-none text-slate-400 space-y-3">
               <ReactMarkdown>{sections.ta}</ReactMarkdown>
@@ -139,7 +139,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
           <div className="bg-gradient-to-br from-purple-900/10 to-slate-900 border border-purple-500/20 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <Heart size={16} className="text-purple-400" />
-              <h3 className="font-bold text-sm uppercase tracking-wider text-purple-300">Sentimiento</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-purple-300">Sentiment</h3>
             </div>
             <div className="prose prose-invert prose-sm max-w-none text-slate-300">
               <ReactMarkdown>{sections.sentiment}</ReactMarkdown>
@@ -152,7 +152,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
           <div className="bg-gradient-to-br from-amber-900/10 to-slate-900 border border-amber-500/20 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <LinkIcon size={16} className="text-amber-400" />
-              <h3 className="font-bold text-sm uppercase tracking-wider text-amber-300">Datos On-Chain</h3>
+              <h3 className="font-bold text-sm uppercase tracking-wider text-amber-300">On-Chain Data</h3>
             </div>
             <div className="prose prose-invert prose-sm max-w-none text-slate-300">
               <ReactMarkdown>{sections.onchain}</ReactMarkdown>
@@ -166,7 +166,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
         <div className="bg-gradient-to-r from-emerald-900/20 via-slate-900 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target size={18} className="text-emerald-400" />
-            <h3 className="font-bold text-base uppercase tracking-wider text-emerald-300">Plan de Trading</h3>
+            <h3 className="font-bold text-base uppercase tracking-wider text-emerald-300">Trading Plan</h3>
           </div>
           <div className="prose prose-invert prose-sm max-w-none text-slate-200 space-y-3">
             <ReactMarkdown>{sections.plan}</ReactMarkdown>
@@ -179,7 +179,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
         <div className="bg-slate-900 border-l-4 border-amber-500 rounded-lg p-6">
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb size={16} className="text-amber-400" />
-            <h3 className="font-bold text-sm uppercase tracking-wider text-amber-300">Insights Clave</h3>
+            <h3 className="font-bold text-sm uppercase tracking-wider text-amber-300">Key Insights</h3>
           </div>
           <div className="prose prose-invert prose-sm max-w-none text-amber-100 space-y-3">
             <ReactMarkdown>{sections.insight}</ReactMarkdown>
@@ -192,7 +192,7 @@ export const ProAnalysisViewer: React.FC<Props> = ({ response, token }) => {
         <div className="bg-slate-950/50 rounded-xl border border-slate-800 overflow-hidden">
           <div className="bg-slate-900/50 px-5 py-3 border-b border-slate-800 flex items-center gap-2">
             <Sliders size={14} className="text-emerald-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Parámetros de Señal</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Signal Parameters</h3>
           </div>
           <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-3 font-mono text-xs">
             {sections.params.split('\n').filter(l => l.trim()).map((line, i) => {

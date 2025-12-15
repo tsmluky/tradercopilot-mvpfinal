@@ -1,180 +1,205 @@
 
-import React, { useState } from 'react';
-import { Check, X, Zap, Crown, Shield, Activity, ArrowRight, Star } from 'lucide-react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import {
+    Check,
+    X,
+    Zap,
+    Cpu,
+    Globe,
+    Clock,
+    MessageSquare,
+    ShieldCheck,
+    CreditCard
+} from 'lucide-react';
 
 export const MembershipPage: React.FC = () => {
-  const { userProfile } = useAuth();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+    const { userProfile, upgradeSubscription } = useAuth();
+    const currentPlan = userProfile?.user.subscription_status || 'free';
+    const [processing, setProcessing] = React.useState<string | null>(null);
 
-  return (
-    <div className="p-6 md:p-12 max-w-7xl mx-auto">
-      <div className="text-center mb-12">
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
-          Unlock Full <span className="text-emerald-400">Market Alpha</span>
-        </h1>
-        <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-          Join the top 1% of traders using AI-driven signals, RAG contextual analysis, and automated risk management.
-        </p>
-        
-        {/* Toggle */}
-        <div className="mt-8 flex justify-center items-center gap-4">
-            <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-500'}`}>Monthly</span>
-            <button 
-                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-                className="w-14 h-7 bg-slate-800 rounded-full relative border border-slate-700 transition-colors"
-            >
-                <div className={`absolute top-1 w-5 h-5 bg-emerald-500 rounded-full transition-all shadow-lg ${billingCycle === 'monthly' ? 'left-1' : 'left-7'}`}></div>
-            </button>
-            <span className={`text-sm font-bold ${billingCycle === 'yearly' ? 'text-white' : 'text-slate-500'}`}>
-                Yearly <span className="text-emerald-400 text-xs ml-1">(Save 20%)</span>
-            </span>
-        </div>
-      </div>
+    const handleUpgrade = async (planId: string) => {
+        setProcessing(planId);
+        // Map keys if needed, currently they match roughly but careful with types
+        const targetPlan = planId as 'free' | 'trader' | 'pro';
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        
-        {/* STARTER (Free) */}
-        <PlanCard 
-            title="Starter" 
-            price="$0" 
-            period="mo"
-            description="For casual traders."
-            features={[
-                "5 LITE Signals / day",
-                "1 PRO Analysis / day",
-                "Basic Dashboard Access",
-                "Community Leaderboard"
-            ]}
-            missing={[
-                "Advisor (Risk AI)",
-                "Real-time Telegram Alerts",
-                "API Access",
-                "Unlimited Signals"
-            ]}
-            current={userProfile?.user.subscription_status === 'inactive' || userProfile?.user.subscription_status === 'trial'}
-        />
-
-        {/* PLUS ($20) */}
-        <PlanCard 
-            title="Plus" 
-            price={billingCycle === 'monthly' ? "$20" : "$16"} 
-            period="mo"
-            description="For serious daily traders."
-            highlight
-            features={[
-                "50 LITE Signals / day",
-                "25 PRO Analysis / day",
-                "25 Advisor Prompts / day",
-                "Priority Telegram Alerts",
-                "Unlimited Signal Tracking"
-            ]}
-            missing={[
-                "Direct API Access",
-                "Unlimited Requests",
-                "Whale Club Access"
-            ]}
-            buttonText="Upgrade to Plus"
-            current={userProfile?.user.subscription_status === 'active' && userProfile.user.role === 'user'}
-        />
-
-        {/* PRO ($35) */}
-        <PlanCard 
-            title="Pro Unlimited" 
-            price={billingCycle === 'monthly' ? "$35" : "$28"} 
-            period="mo"
-            description="Maximum power & automation."
-            features={[
-                "Unlimited LITE Signals",
-                "Unlimited PRO Analysis",
-                "Unlimited Advisor Mode",
-                "Direct API Access",
-                "Scenario Management",
-                "Priority Support"
-            ]}
-            buttonText="Go Unlimited"
-            current={userProfile?.user.role === 'admin'} // Mock logic for top tier
-        />
-      </div>
-
-      <div className="mt-16 border-t border-slate-800 pt-12">
-        <h3 className="text-center text-xl font-bold text-white mb-8">Frequently Asked Questions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <FAQ q="How accurate are the signals?" a="Our LITE signals maintain a historic 65-72% win rate. Evaluation logs are open and transparent in the app." />
-            <FAQ q="Can I cancel anytime?" a="Yes, you can manage your subscription directly from the dashboard. No hidden fees or lock-ins." />
-            <FAQ q="What exchanges are supported?" a="Our analysis works for any major CEX (Binance, Bybit) or DEX. The price feed is aggregated from top sources." />
-            <FAQ q="Do you offer refunds?" a="We offer a 7-day money-back guarantee if the AI performance does not match the advertised logs." />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PlanCard = ({ title, price, period, description, features, missing, highlight, buttonText, current }: any) => {
-    const [loading, setLoading] = useState(false);
-
-    const handleSubscribe = () => {
-        setLoading(true);
-        // Mock payment flow
-        setTimeout(() => {
-            setLoading(false);
-            alert("Redirecting to Stripe Checkout... (Mock)");
-        }, 1000);
+        try {
+            await upgradeSubscription(targetPlan);
+        } catch (error) {
+            console.error("Upgrade failed:", error);
+        } finally {
+            setProcessing(null);
+        }
     };
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const plans = [
+        {
+            id: 'free',
+            name: 'Rookie',
+            price: '$0',
+            period: 'forever',
+            description: 'Perfect for checking the market occasionally.',
+            features: [
+                { text: 'Signals: BTC, ETH, SOL Only', included: true },
+                { text: '15-minute Delayed Data', included: true, warning: true },
+                { text: 'Analyst AI (Read-Only)', included: true },
+                { text: 'Timeframes: 4h, Daily', included: true },
+                { text: 'Real-time Alerts', included: false },
+                { text: 'Advisor Chat', included: false },
+                { text: 'Custom Strategies', included: false },
+            ],
+            cta: 'Current Plan',
+            active: currentPlan === 'free',
+            highlight: false
+        },
+        {
+            id: 'trader',
+            name: 'Trader',
+            price: '$29',
+            period: '/ month',
+            description: 'For active traders who need speed and coverage.',
+            features: [
+                { text: 'Real-Time Signals (Zero Latency)', included: true, highlight: true },
+                { text: 'All 150+ Tokens (Alts & Memes)', included: true },
+                { text: 'Instant Telegram Alerts', included: true },
+                { text: 'All Timeframes (15m+)', included: true },
+                { text: 'Analyst AI (20 evals/day)', included: true },
+                { text: 'Advisor Chat', included: false },
+                { text: 'Custom Strategies', included: false },
+            ],
+            cta: 'Upgrade to Trader',
+            active: currentPlan === 'trader',
+            highlight: true
+        },
+        {
+            id: 'pro',
+            name: 'Whale',
+            price: '$99',
+            period: '/ month',
+            description: 'For serious algorithmic traders and automation.',
+            features: [
+                { text: 'Everything in Trader', included: true },
+                { text: 'Unlimited AI Advisor Chat', included: true, highlight: true },
+                { text: 'Create Custom Strategies (Lab)', included: true },
+                { text: 'Hunter Mode (1m/5m Scalping)', included: true },
+                { text: 'Priority Dev Support', included: true },
+                { text: 'Multi-Exchange Connection', included: true },
+                { text: 'API Access', included: true },
+            ],
+            cta: 'Become a Whale',
+            active: currentPlan === 'pro',
+            highlight: false
+        }
+    ];
+
     return (
-        <div className={`rounded-2xl p-8 flex flex-col relative ${highlight ? 'bg-slate-900 border-2 border-emerald-500 shadow-2xl shadow-emerald-900/20 transform md:-translate-y-4' : 'bg-slate-900 border border-slate-800'}`}>
-            {highlight && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                    <Star size={12} fill="currentColor" /> Most Popular
-                </div>
-            )}
-            
-            <div className="mb-6">
-                <h3 className={`text-lg font-bold ${highlight ? 'text-emerald-400' : 'text-white'}`}>{title}</h3>
-                <div className="mt-4 flex items-baseline text-white">
-                    <span className="text-4xl font-bold tracking-tight">{price}</span>
-                    {period && <span className="ml-1 text-xl font-semibold text-slate-500">/{period}</span>}
-                </div>
-                <p className="mt-4 text-slate-400 text-sm leading-6">{description}</p>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8 animate-fade-in">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+                <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+                    Upgrade your <span className="text-emerald-400">Trading Edge</span>
+                </h1>
+                <p className="text-slate-400 text-lg">
+                    Select the plan that fits your trading style. Unlock real-time data, AI insights, and automation tools.
+                </p>
             </div>
 
-            <ul className="mb-8 space-y-4 flex-1">
-                {features.map((feature: string) => (
-                    <li key={feature} className="flex items-start gap-3">
-                        <Check className={`flex-shrink-0 w-5 h-5 ${highlight ? 'text-emerald-500' : 'text-slate-500'}`} />
-                        <span className="text-sm text-slate-300">{feature}</span>
-                    </li>
-                ))}
-                {missing?.map((feature: string) => (
-                    <li key={feature} className="flex items-start gap-3 opacity-50">
-                        <X className="flex-shrink-0 w-5 h-5 text-slate-600" />
-                        <span className="text-sm text-slate-500">{feature}</span>
-                    </li>
-                ))}
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                {/* Glow Effect for Highlighted Card */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-1/3 h-full bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
 
-            <button 
-                onClick={handleSubscribe}
-                disabled={current || loading}
-                className={`w-full py-3 px-4 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                    current 
-                    ? 'bg-slate-800 text-slate-400 cursor-default'
-                    : highlight 
-                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' 
-                        : 'bg-slate-800 hover:bg-slate-700 text-white'
-                }`}
-            >
-                {loading ? 'Processing...' : current ? 'Current Plan' : (buttonText || 'Get Started')}
-                {!current && !loading && <ArrowRight size={16} />}
-            </button>
+                {plans.map((plan) => (
+                    <div
+                        key={plan.id}
+                        className={`relative flex flex-col p-6 md:p-8 rounded-2xl border transition-all duration-300 hover:-translate-y-2
+              ${plan.active
+                                ? 'bg-slate-900/80 border-slate-700 ring-2 ring-emerald-500/50 shadow-emerald-900/20'
+                                : plan.highlight
+                                    ? 'bg-slate-900/90 border-emerald-500/30 shadow-2xl shadow-emerald-900/20 z-10 scale-105'
+                                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                            }
+            `}
+                    >
+                        {plan.highlight && (
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">
+                                Most Popular
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <h3 className={`text-xl font-bold mb-2 ${plan.highlight ? 'text-white' : 'text-slate-200'}`}>
+                                {plan.name}
+                            </h3>
+                            <div className="flex items-baseline gap-1">
+                                <span className={`text-4xl font-bold ${plan.highlight ? 'text-emerald-400' : 'text-white'}`}>
+                                    {plan.price}
+                                </span>
+                                <span className="text-slate-500 text-sm font-medium">{plan.period}</span>
+                            </div>
+                            <p className="text-slate-400 text-sm mt-3 leading-relaxed">
+                                {plan.description}
+                            </p>
+                        </div>
+
+                        <div className="flex-1 space-y-4 mb-8">
+                            {plan.features.map((feature, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-sm">
+                                    {feature.included ? (
+                                        <div className={`mt-0.5 p-0.5 rounded-full ${feature.highlight ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                                            <Check size={12} strokeWidth={3} />
+                                        </div>
+                                    ) : (
+                                        <div className="mt-0.5 p-0.5 text-slate-700">
+                                            <X size={14} />
+                                        </div>
+                                    )}
+                                    <span className={`${!feature.included ? 'text-slate-600 line-through decoration-slate-700' :
+                                        feature.highlight ? 'text-slate-100 font-medium' :
+                                            feature.warning ? 'text-amber-500/80' : 'text-slate-300'
+                                        }`}>
+                                        {feature.text}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            disabled={plan.active || processing === plan.id}
+                            onClick={() => handleUpgrade(plan.id)}
+                            className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98]
+                ${plan.active
+                                    ? 'bg-slate-800 text-slate-400 cursor-default border border-slate-700'
+                                    : plan.highlight
+                                        ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/25'
+                                        : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                                }
+              `}
+                        >
+                            {processing === plan.id ? (
+                                <span className="flex items-center justify-center gap-2 animate-pulse">
+                                    <Clock size={16} className="animate-spin" /> Processing...
+                                </span>
+                            ) : plan.active ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <Check size={16} /> Current Plan
+                                </span>
+                            ) : (
+                                plan.cta
+                            )}
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-16 text-center border-t border-slate-800/50 pt-8">
+                <p className="text-slate-500 text-sm mb-4">Trusted by 1,000+ traders worldwide</p>
+                <div className="flex flex-wrap justify-center gap-8 opacity-40 grayscale">
+                    {/* Logos placeholder */}
+                    <div className="text-xl font-bold text-slate-300 flex items-center gap-2"><Globe size={18} /> Binance</div>
+                    <div className="text-xl font-bold text-slate-300 flex items-center gap-2"><Cpu size={18} /> Bybit</div>
+                    <div className="text-xl font-bold text-slate-300 flex items-center gap-2"><Zap size={18} /> Solana</div>
+                </div>
+            </div>
         </div>
     );
 };
-
-const FAQ = ({ q, a }: { q: string, a: string }) => (
-    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-        <h4 className="font-bold text-white text-sm mb-2">{q}</h4>
-        <p className="text-sm text-slate-400 leading-relaxed">{a}</p>
-    </div>
-);

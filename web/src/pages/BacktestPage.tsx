@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, TrendingUp, TrendingDown, Clock, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { API_BASE_URL } from '../constants';
+import { api } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 export const BacktestPage: React.FC = () => {
@@ -16,6 +18,12 @@ export const BacktestPage: React.FC = () => {
 
     const [results, setResults] = useState<any>(null);
     const [error, setError] = useState('');
+
+    // Persona Modal State
+    const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+    const [personaName, setPersonaName] = useState('');
+    const [personaDesc, setPersonaDesc] = useState('');
+    const navigate = useNavigate();
 
     const runBacktest = async () => {
         setLoading(true);
@@ -49,6 +57,32 @@ export const BacktestPage: React.FC = () => {
             toast.error("Backtest failed");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreatePersona = async () => {
+        if (!results) return;
+
+        const toastId = toast.loading('Creating Agent...');
+        try {
+            await api.createPersona({
+                name: personaName,
+                description: personaDesc,
+                symbol: params.token.toUpperCase(),
+                timeframe: params.timeframe,
+                strategy_id: params.strategy,
+                risk_level: (results.metrics.max_drawdown || 0) < -10 ? "High" : "Medium",
+                expected_roi: `${(results.metrics.roi_pct || 0).toFixed(0)}%`,
+                win_rate: `${(results.metrics.win_rate || 0).toFixed(0)}%`,
+                frequency: "Day Trader"
+            });
+
+            toast.success('Agent Launched!', { id: toastId });
+            setIsPersonaModalOpen(false);
+            navigate('/strategies');
+
+        } catch (err: any) {
+            toast.error('Failed to create agent: ' + err.message, { id: toastId });
         }
     };
 
@@ -203,7 +237,10 @@ export const BacktestPage: React.FC = () => {
 
                             {/* Create Persona Intent */}
                             {results.metrics.total_pnl > 0 && (
-                                <button className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-lg border border-slate-700 transition-all flex flex-col items-center gap-1 group">
+                                <button
+                                    onClick={() => setIsPersonaModalOpen(true)}
+                                    className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-lg border border-slate-700 transition-all flex flex-col items-center gap-1 group"
+                                >
                                     <span className="group-hover:text-indigo-400 transition-colors">SAVE AS AGENT</span>
                                     <span className="text-[10px] text-slate-500 font-normal">Add to Marketplace</span>
                                 </button>
@@ -354,6 +391,77 @@ export const BacktestPage: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
+                        {/* Persona Creation Modal */}
+                        {isPersonaModalOpen && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                                <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+                                    <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                        <span className="text-2xl">🧬</span> Create New Agent
+                                    </h2>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Agent Name</label>
+                                            <input
+                                                type="text"
+                                                value={personaName}
+                                                onChange={(e) => setPersonaName(e.target.value)}
+                                                placeholder="e.g. Solana Trend Hunter"
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description</label>
+                                            <textarea
+                                                value={personaDesc}
+                                                onChange={(e) => setPersonaDesc(e.target.value)}
+                                                placeholder="What does this agent do? e.g. Aggressively trades breakouts on 1H timeframe."
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors h-24 resize-none"
+                                            />
+                                        </div>
+
+                                        <div className="p-3 bg-indigo-900/10 border border-indigo-900/30 rounded-lg">
+                                            <h4 className="text-xs font-bold text-indigo-400 mb-2 uppercase">Stats to Publish</h4>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500">ROI:</span>
+                                                    <span className="text-green-400 font-mono">+{results?.metrics?.roi_pct != null ? Number(results.metrics.roi_pct).toFixed(2) : '0.00'}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500">Win Rate:</span>
+                                                    <span className="text-indigo-400 font-mono">{results?.metrics?.win_rate != null ? Number(results.metrics.win_rate).toFixed(1) : '0.0'}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500">Token:</span>
+                                                    <span className="text-slate-300">{params.token.toUpperCase()}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-slate-500">Timeframe:</span>
+                                                    <span className="text-slate-300">{params.timeframe}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-3 mt-6">
+                                            <button
+                                                onClick={() => setIsPersonaModalOpen(false)}
+                                                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2 rounded-lg transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleCreatePersona}
+                                                disabled={!personaName}
+                                                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-900/20"
+                                            >
+                                                Launch Agent 🚀
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

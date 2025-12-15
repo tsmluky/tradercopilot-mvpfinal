@@ -46,9 +46,6 @@ def health_check():
 # En desarrollo: localhost
 # En producción (Railway): permitir todos los orígenes o configurar específicamente
 # CORS Configuration - Permissive for MVP
-# CORS Configuration
-# En producción, especificar dominios exactos.
-# Para desarrollo local con credenciales, necesitamos orígenes explícitos si allow_credentials=True.
 origins = [
     "http://localhost",
     "http://localhost:5173",
@@ -56,7 +53,8 @@ origins = [
     "http://127.0.0.1",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:4173",
-    "*" # Comentar esto si se desea estricto, pero para MVP local ayuda.
+    "https://tradercopilot-mvpfinal.vercel.app",
+    "*" 
 ]
 print(f"[CORS] Allowed Origins: {origins}")
 
@@ -651,9 +649,21 @@ def health_check():
 
 
 # ==== Market Data API ====
-from market_data_api import get_ohlcv_data
+from market_data_api import get_ohlcv_data, get_market_summary
 
-@app.get("/market/ohlcv/{token}")
+@app.get("/market/summary")
+def market_summary_endpoint():
+    """
+    Returns price and 24h change for the default watchlist.
+    """
+    try:
+        watchlist = ["BTC", "ETH", "SOL", "DOT", "DOGE", "AVAX", "LINK", "ADA"]
+        data = get_market_summary(watchlist)
+        return {"current_prices": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def get_market_ohlcv(token: str, timeframe: str = "30m", limit: int = 100):
     """
     Obtiene datos OHLCV (candlestick) para un token específico.
@@ -1212,12 +1222,24 @@ def compute_stats_summary() -> Dict[str, Any]:
             # Open signals (LITE signals not yet evaluated)
             open_signals_est = max(lite_24h - eval_24h_count, 0)
             
+            # [NEW] Calculate PnL (7d)
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            pnl_7d_total = db.query(func.sum(SignalEvaluation.pnl_r)).filter(
+                SignalEvaluation.evaluated_at >= week_ago
+            ).scalar() or 0.0
+
+            # [NEW] Active Agents Count (Requires StrategyConfig check)
+            # Assuming marketplace_config.py loads into StrategyConfig or we just count enabled strategies via API
+            # For now, we return 0 here and let frontend fetch /strategies to count enabled ones.
+            # actually better to let frontend count active agents from /strategies endpoint.
+            
             return {
                 "win_rate_24h": win_rate_24h,
                 "signals_evaluated_24h": eval_24h_count,
                 "signals_total_evaluated": total_eval,
                 "signals_lite_24h": lite_24h,
                 "open_signals": open_signals_est,
+                "pnl_7d": round(pnl_7d_total, 2)
             }
         finally:
             db.close()
@@ -1335,3 +1357,73 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 
+
+# ==== 13. Endpoint Strategy Management (Toggle) ====
+
+@app.patch("/strategies/marketplace/{id}/toggle")
+def toggle_strategy_active(id: str):
+    """
+    Toggles the is_active state of a strategy persona.
+    Supports both Custom (user_strategies.json) and System (system_overrides.json) personas.
+    """
+    try:
+        # Import config helpers locally to avoid circulars if any
+        from marketplace_config import (
+            load_user_strategies, save_user_strategies,
+            load_system_overrides, save_system_overrides,
+            SYSTEM_PERSONAS, refresh_personas
+        )
+
+        target_id = id
+        
+        # 1. Check if it's a User Strategy
+        user_strategies = load_user_strategies()
+        found_in_user = False
+        
+        for p in user_strategies:
+            if p["id"] == target_id:
+                # Toggle
+                current = p.get("is_active", True)
+                p["is_active"] = not current
+                found_in_user = True
+                save_user_strategies(user_strategies)
+                break
+        
+        if found_in_user:
+            refresh_personas()
+            return {"status": "ok", "message": f"Strategy {target_id} toggled."}
+
+        # 2. Check if it's a System Strategy
+        is_system = any(p["id"] == target_id for p in SYSTEM_PERSONAS)
+        
+        if is_system:
+            overrides = load_system_overrides()
+            # If not in overrides, assume active (default for system is True)
+            # Find default first to be sure
+            default_state = True
+            for sp in SYSTEM_PERSONAS:
+                if sp["id"] == target_id:
+                    default_state = sp.get("is_active", True)
+                    break
+            
+            # Determine current state
+            current_override = overrides.get(target_id, {}).get("is_active")
+            current_state = current_override if current_override is not None else default_state
+            
+            # Toggle
+            new_state = not current_state
+            
+            # Save override
+            if target_id not in overrides:
+                overrides[target_id] = {}
+            overrides[target_id]["is_active"] = new_state
+            
+            save_system_overrides(overrides)
+            refresh_personas()
+            return {"status": "ok", "message": f"System Strategy {target_id} toggled to {new_state}."}
+
+        raise HTTPException(status_code=404, detail="Strategy not found")
+        
+    except Exception as e:
+        print(f"Error toggling strategy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

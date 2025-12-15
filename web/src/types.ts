@@ -97,7 +97,7 @@ export interface User {
   name: string;
   role: 'admin' | 'user';
   avatar_url?: string;
-  subscription_status: 'active' | 'inactive' | 'trial';
+  subscription_status: 'active' | 'inactive' | 'trial' | 'free' | 'trader' | 'pro';
   onboarding_completed?: boolean;
 }
 

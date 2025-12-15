@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     LineChart,
     Zap,
+    Radar, // Added Radar
     Settings,
     Menu,
     Activity,
@@ -13,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationCenter } from '../NotificationCenter';
+import { API_BASE_URL } from '../../constants';
+import { AdvisorChat } from '../AdvisorChat';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -20,17 +23,40 @@ interface MainLayoutProps {
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [prices, setPrices] = useState<any[]>([]);
     const navigate = useNavigate();
     const location = useLocation();
-    const { logout, user } = useAuth();
+    const { logout, userProfile } = useAuth();
+    const user = userProfile?.user;
+
+    // Fetch Market Summary
+    useEffect(() => {
+        const fetchPrices = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/market/summary`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.current_prices) {
+                        setPrices(data.current_prices);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch market summary", error);
+            }
+        };
+
+        fetchPrices();
+        const interval = setInterval(fetchPrices, 60000); // Update every 1m
+        return () => clearInterval(interval);
+    }, []);
 
     const navItems = [
-        { id: '/', label: 'Dashboard', icon: LayoutDashboard },
-        { id: '/analysis', label: 'Generate Signal', icon: Zap },
-        { id: '/signals', label: 'Live Signals', icon: Activity },
-        { id: '/strategies', label: 'Strategies', icon: LineChart },
+        { id: '/', label: 'Overview', icon: LayoutDashboard },
+        { id: '/scanner', label: 'Radar', icon: Radar },
+        { id: '/strategies', label: 'Quant', icon: Activity },
         { id: '/backtest', label: 'Backtest', icon: FlaskConical },
         { id: '/logs', label: 'System Logs', icon: Terminal },
+        { id: '/membership', label: 'Membership', icon: Zap },
         { id: '/settings', label: 'Settings', icon: Settings },
     ];
 
@@ -97,10 +123,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-800/50 mb-3">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xs border border-indigo-500/30">
-                                    {user?.username?.substring(0, 2).toUpperCase() || 'ME'}
+                                    {user?.name?.substring(0, 2).toUpperCase() || 'ME'}
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-xs font-medium text-slate-300">{user?.username || 'Trader'}</span>
+                                    <span className="text-xs font-medium text-slate-300">{user?.name || 'Trader'}</span>
                                     <span className="text-[10px] text-slate-500">Pro Plan</span>
                                 </div>
                             </div>
@@ -122,6 +148,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 {/* Background Gradient Mesh */}
                 <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-indigo-900/10 to-transparent pointer-events-none" />
 
+
                 {/* Header */}
                 <header className="h-16 flex items-center justify-between px-6 border-b border-slate-800/50 bg-[#020617]/80 backdrop-blur-md z-30 sticky top-0">
                     <div className="flex items-center gap-4">
@@ -139,15 +166,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
                     {/* Top Bar Stats */}
                     <div className="flex items-center gap-4">
-                        <div className="hidden md:flex items-center gap-6 text-sm bg-slate-900/50 px-4 py-1.5 rounded-full border border-slate-800/50">
-                            <div className="flex items-center gap-2">
-                                <span className="text-slate-500 font-medium">BTC</span>
-                                <span className="font-mono text-emerald-400">$90,728</span>
-                            </div>
-                            <div className="w-px h-3 bg-slate-700"></div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-slate-500 font-medium">ETH</span>
-                                <span className="font-mono text-emerald-400">$3,010</span>
+                        {/* Market Ticker */}
+                        <div className="hidden md:flex items-center gap-6 text-sm bg-slate-900/50 px-4 py-1.5 rounded-full border border-slate-800/50 max-w-xl overflow-hidden relative group">
+                            {/* FADE MASKS */}
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-900/90 to-transparent z-10 pointer-events-none"></div>
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-900/90 to-transparent z-10 pointer-events-none"></div>
+
+                            <div className="flex items-center gap-6 animate-marquee whitespace-nowrap hover:pause">
+                                {prices.length === 0 ? (
+                                    <span className="text-slate-500 text-xs">Loading market data...</span>
+                                ) : (
+                                    [...prices, ...prices].map((p, i) => (
+                                        <div key={`${p.symbol}-${i}`} className="flex items-center gap-2 min-w-max">
+                                            <span className="text-slate-500 font-medium">{p.symbol}</span>
+                                            <span className="font-mono text-slate-200">${p.price < 1 ? p.price.toFixed(4) : p.price.toFixed(2)}</span>
+                                            <span className={`text-xs font-medium ${p.change_24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {p.change_24h >= 0 ? '+' : ''}{p.change_24h.toFixed(2)}%
+                                            </span>
+                                            {/* Divider */}
+                                            <div className="w-px h-3 bg-slate-700/50 mx-2"></div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
 
@@ -165,6 +205,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     </div>
                 </main>
             </div>
+
+            {/* Global Advisor Chat - Hidden on Scanner Page to prevent overlap with Drawer */}
+            {location.pathname !== '/scanner' && <AdvisorChat />}
         </div>
     );
 };

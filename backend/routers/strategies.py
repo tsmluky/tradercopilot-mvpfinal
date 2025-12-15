@@ -22,11 +22,23 @@ from core.signal_logger import log_signal
 from pydantic import BaseModel
 from marketplace_config import MARKETPLACE_PERSONAS, get_active_strategies
 
+# === Dependency ===
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 @router.get("/marketplace", response_model=List[Dict[str, Any]])
 async def get_marketplace():
     """Retorna la configuración de 'Personas' del Marketplace."""
+    from marketplace_config import refresh_personas, MARKETPLACE_PERSONAS
+    refresh_personas()
+    return MARKETPLACE_PERSONAS
+
 from models_db import Signal, SignalEvaluation
 
 @router.get("/marketplace/{persona_id}/history")
@@ -113,14 +125,7 @@ class ExecuteStrategyRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
-# === Dependency ===
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # === Endpoints ===
@@ -322,3 +327,127 @@ async def execute_strategy_manual(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error executing strategy: {str(e)}")
+
+
+class CreatePersonaRequest(BaseModel):
+    name: str
+    description: str
+    symbol: str
+    timeframe: str
+    strategy_id: str
+    risk_level: str
+    expected_roi: str
+    win_rate: str
+    frequency: str
+
+@router.post("/marketplace/create")
+async def create_persona(req: CreatePersonaRequest):
+    """
+    Crea una nueva Persona en el Marketplace.
+    (Persistencia: user_strategies.json)
+    """
+    import json
+    import re
+    from marketplace_config import USER_STRATEGIES_FILE, refresh_personas
+    
+    # 1. Definir ID único (Sanitized)
+    safe_name = re.sub(r'[^a-z0-9]', '_', req.name.lower())
+    new_id = f"{safe_name}_{req.symbol.lower()}"
+    
+    # Check if ID exists (in the FRESH list)
+    current_personas = refresh_personas() # Ensure we have latest
+    existing_ids = [p["id"] for p in current_personas]
+    
+    if new_id in existing_ids:
+         # Add random suffix
+        import random
+        new_id = f"{new_id}_{random.randint(1000, 9999)}"
+
+    # 2. Construir objeto
+    new_persona = {
+        "id": new_id,
+        "name": req.name,
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "strategy_id": req.strategy_id,
+        "description": req.description,
+        "risk_level": req.risk_level,
+        "expected_roi": req.expected_roi,
+        "win_rate": req.win_rate,
+        "frequency": req.frequency,
+        "color": "indigo", 
+        "is_active": True,
+        "is_custom": True
+    }
+    
+    # 3. Persistir en JSON
+    try:
+        user_data = []
+        if USER_STRATEGIES_FILE.exists():
+            with open(USER_STRATEGIES_FILE, "r", encoding="utf-8") as f:
+                user_data = json.load(f)
+        
+        user_data.append(new_persona)
+        
+        with open(USER_STRATEGIES_FILE, "w", encoding="utf-8") as f:
+            json.dump(user_data, f, indent=4)
+            
+        # Refresh in-memory list so other endpoints see it immediately
+        refresh_personas()
+            
+        return {"status": "ok", "id": new_id, "msg": "Persona created and saved to JSON."}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save persona: {str(e)}")
+
+
+@router.delete("/marketplace/{persona_id}")
+async def delete_persona(persona_id: str):
+    """
+    Elimina una Persona personalizada del Marketplace (JSON).
+    Source of Truth: JSON File directly.
+    """
+    import json
+    from marketplace_config import USER_STRATEGIES_FILE, refresh_personas
+
+    print(f"!!! BACKEND DELETE REQUEST RECEIVED FOR: {persona_id} !!!")
+    print(f"!!! LOOKING IN FILE: {USER_STRATEGIES_FILE} !!!")
+
+    # 1. Attempt to Delete directly from JSON (Bypassing memory checks)
+    if not USER_STRATEGIES_FILE.exists():
+         raise HTTPException(status_code=404, detail="User strategies storage not found")
+         
+    try:
+        with open(USER_STRATEGIES_FILE, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+            
+        # Check if exists in FILE
+        target_in_file = next((p for p in user_data if p["id"] == persona_id), None)
+        
+        if not target_in_file:
+             # If not in custom file, check if it's a system file (forbidden)
+             # But first 404 if not found anywhere? 
+             # Let's just say 404 if not in User JSON, assuming Frontend only calls DELETE on custom items.
+             # Alternatively, check System list to give specific 403 error.
+             raise HTTPException(status_code=404, detail="Custom Persona not found")
+
+        # 2. Rewrite JSON without it
+        new_user_data = [p for p in user_data if p["id"] != persona_id]
+        
+        with open(USER_STRATEGIES_FILE, "w", encoding="utf-8") as f:
+            json.dump(new_user_data, f, indent=4)
+            
+        # 3. Update Memory
+        refresh_personas()
+        
+        return {"status": "ok", "msg": f"Persona {persona_id} deleted"}
+        
+    except json.JSONDecodeError:
+         raise HTTPException(status_code=500, detail="Corrupted Strategy File")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete persona: {str(e)}")
+
+def _persist_config(path: str):
+    pass # Deprecated

@@ -1,11 +1,44 @@
-.venv/
-env/
+# System
+.DS_Store
+Thumbs.db
+*.zip
+
+# Python
 __pycache__/
-*.pyc
-logs/
-*.db
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+venv/
+ENV/
+*.log
+
+# Node
 node_modules/
 dist/
-build/
-.env
-.env.*
+.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# Project Specific Loggers
+backend/logs/LITE/
+backend/logs/PRO/
+backend/logs/ADVISOR/
+backend/logs/EVALUATED/
+docs/dev_notes/
+
+# === IP PROTECTION (Coca-Cola Secret) ===
+# Hide Research Lab
+trading_lab/
+
+# Hide Strategy Implementations but show Architecture
+backend/strategies/*.py
+!backend/strategies/__init__.py
+!backend/strategies/base.py
+!backend/strategies/registry.py
+
+# Hide Specific Configuration Parameters
+backend/quant_config.py

@@ -209,6 +209,23 @@ export async function fetchLogs(mode: string, token: string): Promise<LogRow[]> 
 }
 
 // =========================
+// Trigger Evaluation (On-Demand)
+// =========================
+
+export async function triggerBatchEvaluation(): Promise<any> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/analyze/evaluate`, {
+      method: "POST",
+    }, 60000); // 60s timeout for batch evaluation
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (err) {
+    console.warn("triggerBatchEvaluation failed", err);
+    return { status: "error", message: "Failed to trigger evaluation" };
+  }
+}
+
+// =========================
 // getSignalEvaluation: /logs/EVALUATED/{token}
 // =========================
 
@@ -401,7 +418,7 @@ export async function sendAdvisorChat(
     const content =
       typeof data === "string"
         ? data
-        : data.message ?? data.reply ?? "Advisor reply received.";
+        : data.content ?? data.message ?? data.reply ?? "Advisor reply received.";
 
     return {
       id: Date.now().toString(),
@@ -497,11 +514,58 @@ export async function fetchPersonaHistory(personaId: string): Promise<any[]> {
   }
 }
 
+// =========================
+// Persona Creation
+// =========================
+
+export async function createPersona(payload: any): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/strategies/marketplace/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to create persona: ${err}`);
+  }
+
+  return res.json();
+}
+
+export async function deletePersona(id: string): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/strategies/marketplace/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to delete persona");
+  }
+
+  return res.json();
+}
+
+
+export async function togglePersona(id: string): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/strategies/marketplace/${encodeURIComponent(id)}/toggle`, {
+    method: "PATCH",
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to toggle persona");
+  }
+
+  return res.json();
+}
+
 export const api = {
   analyzeLite,
   analyzePro,
   analyzeAdvisor,
   fetchLogs,
+  triggerBatchEvaluation,
   getSignalEvaluation,
   notifyTelegram,
   fetchLeaderboard,
@@ -510,5 +574,8 @@ export const api = {
   register,
   getMe,
   fetchMarketplace,
-  fetchPersonaHistory
+  fetchPersonaHistory,
+  createPersona,
+  deletePersona,
+  togglePersona
 };

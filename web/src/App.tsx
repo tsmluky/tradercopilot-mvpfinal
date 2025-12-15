@@ -3,17 +3,17 @@ import { MemoryRouter as Router, Routes, Route, Navigate } from 'react-router-do
 import { MainLayout } from './components/layout/MainLayout';
 import { DashboardHome } from './components/dashboard/DashboardHome';
 import { AnalysisPage } from './pages/AnalysisPage';
+import { ScannerPage } from './pages/ScannerPage';
 import { StrategiesPage } from './pages/StrategiesPage';
 import { StrategyDetailsPage } from './pages/StrategyDetailsPage';
-import { SignalsPage } from './pages/SignalsPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { LogsPage } from './pages/LogsPage';
+import { MembershipPage } from './pages/MembershipPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastContainer } from './components/Toast';
 import { Loader2 } from 'lucide-react';
-import DevPanel from "./components/DevPanel";
 import { AdvisorChat } from './components/AdvisorChat';
 
 // Wrapper for Protected Routes
@@ -48,27 +48,25 @@ const App: React.FC = () => {
             path="/"
             element={
               <ProtectedRoute>
-                <>
-                  <DashboardHome />
-                  <DevPanel />
-                </>
+                <DashboardHome />
               </ProtectedRoute>
             }
           />
-          <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
+          <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
           <Route path="/strategies" element={<ProtectedRoute><StrategiesPage /></ProtectedRoute>} />
           <Route path="/strategies/:id" element={<ProtectedRoute><StrategyDetailsPage /></ProtectedRoute>} />
-          <Route path="/signals" element={<ProtectedRoute><SignalsPage /></ProtectedRoute>} />
+          {/* Mapping old signals path effectively to scanner in case of bookmarks, or just replacing it entirely */}
+          <Route path="/signals" element={<Navigate to="/scanner" replace />} />
+          <Route path="/analysis" element={<Navigate to="/scanner" replace />} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
+          <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-
-        {/* Global Advisor Chat Overlay - Self Managed */}
-        <AdvisorChat />
 
       </Router>
     </AuthProvider>

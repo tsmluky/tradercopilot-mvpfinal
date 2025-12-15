@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { ArrowLeft, Activity, Shield, Zap, TrendingUp, History, Hash } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface SignalHistory {
     id: string;
@@ -72,12 +73,39 @@ export const StrategyDetailsPage: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-12">
             {/* Header / Nav */}
-            <button
-                onClick={() => navigate('/strategies')}
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" /> Back to Marketplace
-            </button>
+            <div className="flex justify-between items-center">
+                <button
+                    onClick={() => navigate('/strategies')}
+                    className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Back to Marketplace
+                </button>
+
+                {persona.is_custom && (
+                    <button
+                        onClick={async () => {
+                            console.log("CLICKED DELETE BUTTON");
+                            console.log("Target ID:", persona.id);
+
+                            // Direct Delete (No native confirm to avoid blockage)
+                            try {
+                                console.log("Sending DELETE request...");
+                                const toastId = toast.loading('Deleting agent...');
+                                await api.deletePersona(persona.id);
+                                toast.success('Agent deleted successfully', { id: toastId });
+                                console.log("DELETE Success");
+                                navigate('/strategies');
+                            } catch (e: any) {
+                                console.error("DELETE Failed", e);
+                                toast.error(e.message);
+                            }
+                        }}
+                        className="text-xs font-bold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 px-3 py-2 rounded-lg transition-all border border-transparent hover:border-rose-500/20"
+                    >
+                        DELETE AGENT
+                    </button>
+                )}
+            </div>
 
             {/* HERO SECTION */}
             <div className={`relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 p-8 md:p-12`}>
@@ -176,8 +204,8 @@ export const StrategyDetailsPage: React.FC = () => {
                                         </td>
                                         <td className="p-4">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase ${sig.direction.toLowerCase() === 'long'
-                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                                                 }`}>
                                                 {sig.direction}
                                             </span>
@@ -192,10 +220,10 @@ export const StrategyDetailsPage: React.FC = () => {
                                         <td className="p-4 text-center">
                                             {sig.result ? (
                                                 <span className={`px-2 py-1 rounded text-xs font-bold ${sig.result.result.includes('tp') || sig.result.pnl_r > 0
-                                                        ? 'text-emerald-400 bg-emerald-500/10'
-                                                        : sig.result.result.includes('sl') || sig.result.pnl_r < 0
-                                                            ? 'text-rose-400 bg-rose-500/10'
-                                                            : 'text-slate-400 bg-slate-800'
+                                                    ? 'text-emerald-400 bg-emerald-500/10'
+                                                    : sig.result.result.includes('sl') || sig.result.pnl_r < 0
+                                                        ? 'text-rose-400 bg-rose-500/10'
+                                                        : 'text-slate-400 bg-slate-800'
                                                     }`}>
                                                     {sig.result.result.toUpperCase()} ({sig.result.pnl_r > 0 ? '+' : ''}{sig.result.pnl_r}R)
                                                 </span>

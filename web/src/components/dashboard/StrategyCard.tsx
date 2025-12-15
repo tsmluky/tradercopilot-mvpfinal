@@ -4,11 +4,12 @@ import { Activity, TrendingUp, TrendingDown, Clock, BarChart2 } from 'lucide-rea
 interface StrategyCardProps {
     name: string;
     timeframe: string;
-    type: 'Reversion' | 'Trend' | 'Scalping';
+    type: string;
     winRate: number;
     pnl: number;
     status: 'active' | 'standby';
     description: string;
+    isCustom?: boolean;
 }
 
 export const StrategyCard: React.FC<StrategyCardProps> = ({
@@ -18,13 +19,21 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
     winRate,
     pnl,
     status,
-    description
+    description,
+    isCustom
 }) => {
     const isProfitable = pnl > 0;
     const statusColor = status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/30 text-slate-400 border-slate-700';
 
     return (
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 hover:border-indigo-500/30 transition-all duration-300 group">
+        <div className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-5 transition-all duration-300 group relative ${isCustom ? 'border-indigo-500/30 shadow-lg shadow-indigo-500/10' : 'border-slate-700/50 hover:border-indigo-500/30'}`}>
+            {/* Custom Badge */}
+            {isCustom && (
+                <div className="absolute top-0 right-0 -mt-2 -mr-2 px-2 py-0.5 bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-md shadow-md border border-indigo-400">
+                    Custom
+                </div>
+            )}
+
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColor} mb-2`}>

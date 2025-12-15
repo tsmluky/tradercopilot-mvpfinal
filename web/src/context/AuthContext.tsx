@@ -12,6 +12,7 @@ interface AuthContextType {
     updateProfile: (name: string, favorites: string[]) => Promise<void>;
     updateSignalNote: (timestamp: string, token: string, note: string) => Promise<void>;
     toggleFollow: (signal: any) => void;
+    upgradeSubscription: (planId: 'free' | 'trader' | 'pro') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,41 +23,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                try {
-                    const user = await api.getMe();
-                    setUserProfile({
-                        user: {
-                            ...user,
-                            subscription_status: 'active',
-                            onboarding_completed: false, // You might want to fetch this too
-                            avatar_url: `https://ui-avatars.com/api/?name=${user.name}&background=10b981&color=fff`
-                        },
-                        preferences: {
-                            favorite_tokens: ['eth', 'btc', 'sol'],
-                            default_timeframe: '30m',
-                            notifications: {
-                                trade_updates: true,
-                                market_volatility: true,
-                                system_status: true
-                            }
-                        },
-                        portfolio: {
-                            followed_signals: []
-                        }
-                    });
-                    setIsAuthenticated(true);
-                } catch (err) {
-                    console.error('Session expired or invalid', err);
-                    localStorage.removeItem('auth_token');
-                }
-            }
+        // DEV BYPASS: ALWAYS LOGGED IN
+        // We simulate a login to "Admin" for local development
+        // This allows us to skip the Login Screen even if Backend is shaky initially.
+        const bypassWebLogin = async () => {
+            setUserProfile({
+                user: {
+                    id: "1", // String as expected by UserProfile
+                    email: "admin@tradercopilot.com",
+                    name: "Dev Admin",
+                    role: "admin",
+                    subscription_status: 'active',
+                    onboarding_completed: true,
+                    avatar_url: `https://ui-avatars.com/api/?name=Dev+Admin&background=indigo&color=fff`
+                },
+                preferences: {
+                    favorite_tokens: ['sol'],
+                    default_timeframe: '1h',
+                    notifications: {
+                        trade_updates: true,
+                        market_volatility: false,
+                        system_status: true
+                    }
+                },
+                portfolio: { followed_signals: [] }
+            });
+            setIsAuthenticated(true);
             setIsLoading(false);
         };
-
-        checkAuth();
+        bypassWebLogin();
     }, []);
 
     const login = async (email?: string, password?: string) => {
@@ -171,6 +166,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('followed_signals', JSON.stringify(updatedFollowed));
     };
 
+    const upgradeSubscription = async (planId: 'free' | 'trader' | 'pro') => {
+        setIsLoading(true);
+        // Simulate API Payment Delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        if (userProfile) {
+            setUserProfile({
+                ...userProfile,
+                user: {
+                    ...userProfile.user,
+                    subscription_status: planId
+                }
+            });
+            // Persist to local storage to survive refresh if needed
+            localStorage.setItem('user_plan', planId);
+        }
+        setIsLoading(false);
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -183,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 updateProfile,
                 updateSignalNote,
                 toggleFollow,
+                upgradeSubscription,
             }}
         >
             {children}

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { fetchLogs, getSignalEvaluation } from "../services/api";
+import { fetchLogs, getSignalEvaluation, triggerBatchEvaluation } from "../services/api";
 import type { LogRow, SignalEvaluation } from "../types";
 
 type Mode = "LITE" | "PRO" | "ADVISOR";
 
-const TOKENS = ["ETH", "BTC", "SOL"] as const;
+const TOKENS = ["ETH", "BTC", "SOL", "DOT", "ADA", "XRP", "AVAX", "LINK", "DOGE"] as const;
 
 type RowWithEval = {
   row: LogRow;
@@ -67,7 +67,7 @@ export const LogsPage: React.FC = () => {
     if (v === undefined || v === null || v === "") return "-";
     const n = typeof v === "number" ? v : Number(v);
     if (Number.isNaN(n)) return String(v);
-    return n.toFixed(decimals);
+    return n.toString();
   }
 
   function evaluationBadge(evalObj?: SignalEvaluation | null) {
@@ -101,8 +101,13 @@ export const LogsPage: React.FC = () => {
 
     try {
       const target = rows[index];
-      const ts = getTimestamp(target.row);
+      const rawTs = getTimestamp(target.row);
+      const ts = rawTs && !rawTs.endsWith("Z") ? `${rawTs}Z` : rawTs;
       if (!ts) throw new Error("No timestamp for this signal");
+
+      // Trigger Evaluation
+      await triggerBatchEvaluation();
+      await new Promise(r => setTimeout(r, 800));
 
       const evalRes = await getSignalEvaluation(token, ts);
 
@@ -112,11 +117,11 @@ export const LogsPage: React.FC = () => {
           prev.map((item, i) =>
             i === index
               ? {
-                  ...item,
-                  evaluation: null,
-                  evaluationLoading: false,
-                  evaluationError: "No evaluation found yet for this signal",
-                }
+                ...item,
+                evaluation: null,
+                evaluationLoading: false,
+                evaluationError: "No evaluation found yet for this signal",
+              }
               : item
           )
         );
@@ -125,11 +130,11 @@ export const LogsPage: React.FC = () => {
           prev.map((item, i) =>
             i === index
               ? {
-                  ...item,
-                  evaluation: evalRes,
-                  evaluationLoading: false,
-                  evaluationError: null,
-                }
+                ...item,
+                evaluation: evalRes,
+                evaluationLoading: false,
+                evaluationError: null,
+              }
               : item
           )
         );
@@ -140,10 +145,10 @@ export const LogsPage: React.FC = () => {
         prev.map((item, i) =>
           i === index
             ? {
-                ...item,
-                evaluationLoading: false,
-                evaluationError: err?.message ?? "Error getting evaluation",
-              }
+              ...item,
+              evaluationLoading: false,
+              evaluationError: err?.message ?? "Error getting evaluation",
+            }
             : item
         )
       );
@@ -164,24 +169,7 @@ export const LogsPage: React.FC = () => {
       {/* Controls */}
       <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-3">
-          {/* Mode toggle */}
-          <div className="flex gap-2">
-            {(["LITE", "PRO", "ADVISOR"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition
-                  ${
-                    mode === m
-                      ? "bg-indigo-500 text-white border-indigo-400 shadow"
-                      : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"
-                  }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+          {/* Mode select removed (Default: LITE) */}
 
           {/* Token select */}
           <div className="flex items-center gap-2">
@@ -249,7 +237,9 @@ export const LogsPage: React.FC = () => {
               <tbody>
                 {rows.map((item, index) => {
                   const { row, evaluation, evaluationLoading, evaluationError } = item;
-                  const ts = getTimestamp(row);
+                  const rawTs = getTimestamp(row);
+                  // Fix Timezone: Ensure timestamp is treated as UTC if missing 'Z'
+                  const ts = rawTs && !rawTs.endsWith('Z') ? `${rawTs}Z` : rawTs;
                   const tf =
                     getField(row, "timeframe") ||
                     getField(row, "tf") ||
@@ -275,13 +265,12 @@ export const LogsPage: React.FC = () => {
                       <td className="py-2 pr-3 align-top text-xs">
                         {dir ? (
                           <span
-                            className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${
-                              dir.toLowerCase() === "long"
-                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
-                                : dir.toLowerCase() === "short"
+                            className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${dir.toLowerCase() === "long"
+                              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
+                              : dir.toLowerCase() === "short"
                                 ? "bg-rose-500/10 text-rose-300 border-rose-500/40"
                                 : "bg-slate-800 text-slate-100 border-slate-700"
-                            }`}
+                              }`}
                           >
                             {dir.toUpperCase()}
                           </span>
