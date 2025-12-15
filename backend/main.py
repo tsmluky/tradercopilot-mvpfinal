@@ -1424,6 +1424,8 @@ def toggle_strategy_active(id: str):
 
         raise HTTPException(status_code=404, detail="Strategy not found")
         
+    except Exception as e:
+        print(f"Error toggling strategy: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==== 10. System Tools ====
