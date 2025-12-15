@@ -4,7 +4,7 @@ import type { SignalLite, ProResponse } from "../types";
 
 type Mode = "LITE" | "PRO";
 
-const TOKENS = ["ETH", "BTC", "SOL"] as const;
+const TOKENS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT", "LINK", "LTC", "MATIC", "UNI", "ATOM", "NEAR"] as const;
 const TIMEFRAMES = ["1h", "4h", "1d"] as const;
 
 export const AnalysisPage: React.FC = () => {
@@ -151,8 +151,8 @@ export const AnalysisPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-slate-100 uppercase tracking-tight">Signal Generated</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${liteResult.direction.toLowerCase() === "long"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                       }`}>
                       {liteResult.direction}
                     </span>
@@ -167,7 +167,7 @@ export const AnalysisPage: React.FC = () => {
               <div className="text-right">
                 <div className="text-xs text-slate-400 font-medium mb-1">Confidence</div>
                 <div className={`text-xl font-bold ${liteResult.confidence >= 0.8 ? 'text-emerald-400' :
-                    liteResult.confidence >= 0.6 ? 'text-amber-400' : 'text-slate-400'
+                  liteResult.confidence >= 0.6 ? 'text-amber-400' : 'text-slate-400'
                   }`}>
                   {(liteResult.confidence * 100).toFixed(0)}%
                 </div>

@@ -537,7 +537,7 @@ def market_summary_endpoint():
     Returns price and 24h change for the default watchlist.
     """
     try:
-        watchlist = ["BTC", "ETH", "SOL", "DOT", "DOGE", "AVAX", "LINK", "ADA"]
+        watchlist = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT", "LINK", "LTC", "MATIC", "UNI", "ATOM", "NEAR"]
         data = get_market_summary(watchlist)
         return {"current_prices": data}
     except Exception as e:

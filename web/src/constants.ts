@@ -25,9 +25,21 @@ export interface TokenMeta {
 
 
 export const TOKENS = [
-  { id: 'eth', name: 'Ethereum', symbol: 'ETH' },
   { id: 'btc', name: 'Bitcoin', symbol: 'BTC' },
+  { id: 'eth', name: 'Ethereum', symbol: 'ETH' },
   { id: 'sol', name: 'Solana', symbol: 'SOL' },
+  { id: 'xrp', name: 'XRP', symbol: 'XRP' },
+  { id: 'bnb', name: 'Binance Coin', symbol: 'BNB' },
+  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE' },
+  { id: 'ada', name: 'Cardano', symbol: 'ADA' },
+  { id: 'avax', name: 'Avalanche', symbol: 'AVAX' },
+  { id: 'dot', name: 'Polkadot', symbol: 'DOT' },
+  { id: 'link', name: 'Chainlink', symbol: 'LINK' },
+  { id: 'ltc', name: 'Litecoin', symbol: 'LTC' },
+  { id: 'matic', name: 'Polygon', symbol: 'MATIC' },
+  { id: 'uni', name: 'Uniswap', symbol: 'UNI' },
+  { id: 'atom', name: 'Cosmos', symbol: 'ATOM' },
+  { id: 'near', name: 'Near Protocol', symbol: 'NEAR' },
   { id: 'xau', name: 'Gold', symbol: 'XAU' },
 ];
 

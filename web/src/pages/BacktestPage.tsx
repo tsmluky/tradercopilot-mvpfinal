@@ -153,9 +153,18 @@ export const BacktestPage: React.FC = () => {
                             <option value="BTC">Bitcoin (BTC)</option>
                             <option value="ETH">Ethereum (ETH)</option>
                             <option value="SOL">Solana (SOL)</option>
+                            <option value="XRP">XRP (XRP)</option>
+                            <option value="BNB">Binance Coin (BNB)</option>
                             <option value="DOGE">Dogecoin (DOGE)</option>
+                            <option value="ADA">Cardano (ADA)</option>
                             <option value="AVAX">Avalanche (AVAX)</option>
                             <option value="DOT">Polkadot (DOT)</option>
+                            <option value="LINK">Chainlink (LINK)</option>
+                            <option value="LTC">Litecoin (LTC)</option>
+                            <option value="MATIC">Polygon (MATIC)</option>
+                            <option value="UNI">Uniswap (UNI)</option>
+                            <option value="ATOM">Cosmos (ATOM)</option>
+                            <option value="NEAR">Near Protocol (NEAR)</option>
                         </select>
                     </div>
 
