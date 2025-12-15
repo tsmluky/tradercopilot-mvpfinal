@@ -454,71 +454,57 @@ def _build_pro_markdown(
     - Contexto RAG (insights, news, onchain, sentiment, snapshot)
     """
 
-    token_up = lite.token
-    tf = lite.timeframe
-    user_msg = (req.user_message or "").strip()
+    # --- CONSTRUCCIÓN DEL PROMPT PARA LA IA ---
+    from gemini_client import generate_pro
 
-    rsi = indicators.get("rsi", None)
-    trend = indicators.get("trend", "NEUTRAL")
-    ema21 = indicators.get("ema21", None)
+    prompt = f"""
+Has recibido una solicitud de análisis PRO para {token_up} en timeframe {tf}.
 
-    insights = brain.get("insights", "").strip()
-    news = brain.get("news", "").strip()
-    onchain = brain.get("onchain", "").strip()
-    sentiment_txt = brain.get("sentiment", "").strip()
-    snapshot = brain.get("snapshot", "").strip()
+DATOS TÉCNICOS (LITE):
+- Dirección: {lite.direction.upper()}
+- Entrada Sugerida: {lite.entry}
+- TP Sugerido: {lite.tp}
+- SL Sugerido: {lite.sl}
+- RSI: {rsi_str}
+- EMA21: {ema21_str}
+- Tendencia: {trend}
 
-    if not insights:
-        insights = "Sin insights específicos cargados en brain todavía."
-    if not news:
-        news = "Sin noticias relevantes registradas en el contexto local."
-    if not onchain:
-        onchain = "Sin datos on-chain específicos disponibles por ahora."
-    if not sentiment_txt:
-        sentiment_txt = "Sentimiento local no definido; asumir entorno mixto."
+CONTEXTO DE MERCADO (RAG):
+- Insight Clave: {insights}
+- Noticias: {news}
+- OnChain: {onchain}
+- Sentimiento: {sentiment_txt}
+- Snapshot Precio: {snapshot}
 
-    # Strings formateados seguros
-    rsi_str = f"{rsi:.1f}" if isinstance(rsi, (int, float)) else "N/D"
-    ema21_str = f"{ema21:.2f}" if isinstance(ema21, (int, float)) else "N/D"
+MENSAJE DEL USUARIO:
+{user_msg if user_msg else "Ninguno"}
 
-    # Resumen muy corto para #CTXT#
-    ctxt_lines = [
-        f"- Token: {token_up}",
-        f"- Timeframe: {tf}",
-        f"- Dirección LITE sugerida: {lite.direction}",
-        f"- Entrada LITE: {lite.entry} | TP: {lite.tp} | SL: {lite.sl}",
-        f"- RSI aproximado: {rsi_str}",
-        f"- EMA21: {ema21_str}",
-    ]
-    if snapshot:
-        ctxt_lines.append(f"- Snapshot mercado: {snapshot}")
-    ctxt_block = "\n".join(ctxt_lines)
+TAREA:
+Genera un informe profesional institucional.
+Debes rellenar EXACTAMENTE las secciones requeridas.
+Sé conciso pero "insightful". No uses relleno. Queremos que el usuario sienta que habla con un Senior Quant.
+Integra los datos técnicos con el contexto fundamental/onchain si tiene sentido.
+Si el sentimiento o noticias contradicen la señal técnica, menciónalo como riesgo.
 
-    # Plan operativo básico basado en la señal LITE
-    if lite.direction == "long":
-        plan_core = (
-            f"Sesgo principal alcista con entrada orientativa en {lite.entry}. "
-            f"Zona de take profit alrededor de {lite.tp} y zona de stop en {lite.sl}. "
-            "La idea es aprovechar extensión al alza manteniendo riesgo controlado por debajo del último soporte relevante."
-        )
-    else:
-        plan_core = (
-            f"Sesgo principal bajista con entrada orientativa en {lite.entry}. "
-            f"Zona de take profit alrededor de {lite.tp} y zona de stop en {lite.sl}. "
-            "La idea es capturar continuación a la baja limitando el riesgo por encima de la última zona de oferta relevante."
-        )
+FORMATO DE SALIDA (Estricto):
+#ANALYSIS_START
+#CTXT#
+(Resumen ejecutivo de la situación macro/técnica)
+#TA#
+(Análisis técnico detallado: estructura, liquidez, indicadores)
+#PLAN#
+(Plan de ejecución, gestión de la posición)
+#INSIGHT#
+(Un dato clave fundamental, onchain o psicológico que apoye la tesis)
+#PARAMS#
+Entry: {lite.entry}
+TP: {lite.tp}
+SL: {lite.sl}
+#ANALYSIS_END
+"""
 
-    if user_msg:
-        extra_user = f"\n\nAdemás, el usuario ha indicado: _\"{user_msg}\"_."
-    else:
-        extra_user = ""
-
-    # PARAMS: dejamos algo “contractual” para el frontend / futuras capas
-    params_lines = [
-        f"- token: {token_up}",
-        f"- timeframe: {tf}",
-        f"- direction_bias: {lite.direction}",
-        f"- entry_hint: {lite.entry}",
+    # Llamada a la IA
+    return generate_pro(prompt)        f"- entry_hint: {lite.entry}",
         f"- tp_hint: {lite.tp}",
         f"- sl_hint: {lite.sl}",
         f"- lite_confidence: {lite.confidence}",
@@ -1098,7 +1084,7 @@ def analyze_advisor_chat(req: AdvisorChatReq):
     """
     Endpoint para chat interactivo con el Advisor (DeepSeek).
     """
-    from deepseek_client import generate_chat
+    from gemini_client import generate_chat
     
     # Convertir modelos Pydantic a dicts para la función
     messages = [{"role": m.role, "content": m.content} for m in req.history]

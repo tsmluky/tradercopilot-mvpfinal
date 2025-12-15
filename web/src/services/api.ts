@@ -15,7 +15,7 @@ import {
 // Helpers HTTP básicos
 // =========================
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000; // Increased to 30s for robustness
 
 
 async function fetchWithTimeout(
@@ -69,7 +69,7 @@ const parseCSV = (csvText: string): LogRow[] => {
     result.push(row);
   }
   return result;
-};
+}
 
 // =========================
 // Health (para DevPanel y checks)
@@ -119,7 +119,7 @@ export async function analyzePro(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }, 60000); // 60s timeout
+    }, 120000); // 120s timeout for DeepSeek/Gemini
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
