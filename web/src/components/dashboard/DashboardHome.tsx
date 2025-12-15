@@ -68,7 +68,7 @@ export const DashboardHome: React.FC = () => {
     }
 
     const activeStrategies = strategies.filter(s => s.is_active);
-    const activeStrategies = strategies.filter(s => s.is_active);
+
 
     return (
         <div className="space-y-8 pb-12">
