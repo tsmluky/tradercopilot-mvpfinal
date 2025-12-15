@@ -8,7 +8,7 @@ import google.generativeai as genai
 # Utiliza google-generativeai para conectar con Gemini 1.5 Flash (recomendado para demos).
 # Requiere GEMINI_API_KEY en el entorno.
 
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 def _configure_genai():
     """
