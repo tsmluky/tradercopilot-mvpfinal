@@ -104,19 +104,22 @@ class StrategyScheduler:
                         
                         count = 0
                         for sig in signals:
-                            # Deduplication Logic 2.0: Strict Alternation & Cooldown
-                            # Key: persona_id + token
-                            # Rule: Cannot emit same direction twice in a row (Visual Clarity for Sale)
-                            state_key = f"{p_id}_{sig.token}"
-                            last_dir = self.last_signal_direction.get(state_key)
+                            # Deduplication Logic 3.0: Timestamp AND Alternation
+                            # 1. Prevent reprocessing old signals (History spam)
+                            ts_key = f"{p_id}_{sig.token}"
+                            last_ts = self.processed_signals.get(ts_key)
                             
+                            if last_ts and sig.timestamp <= last_ts:
+                                continue
+
+                            # 2. Prevent same-side spam (Visual Clarity)
+                            last_dir = self.last_signal_direction.get(ts_key)
                             if last_dir == sig.direction:
-                                # Skip same-side duplicate to avoid log spam
                                 continue
                             
-                            # Update state
-                            self.last_signal_direction[state_key] = sig.direction
-                            self.processed_signals[sig_key] = sig.timestamp
+                            # 3. Valid New Signal
+                            self.processed_signals[ts_key] = sig.timestamp
+                            self.last_signal_direction[ts_key] = sig.direction
                             
                             # Enriquecer source con el ID de la persona
                             sig.source = f"Marketplace:{p_id}"
