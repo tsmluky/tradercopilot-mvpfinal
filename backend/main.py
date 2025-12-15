@@ -718,7 +718,7 @@ def analyze_lite(req: LiteReq):
     tf = req.timeframe
 
     # 1) Capa Quant
-    df, market = get_market_data(token, tf)
+    df, market = get_market_data(token, tf, limit=300)
     if not market:
         raise HTTPException(status_code=502, detail="Error fetching market data")
 
@@ -831,7 +831,7 @@ def analyze_pro(req: ProReq):
     tf = req.timeframe
 
     # 1) Capa Quant
-    df, market = get_market_data(token, tf)
+    df, market = get_market_data(token, tf, limit=200)
     if not market:
         raise HTTPException(status_code=502, detail="Error fetching market data")
 

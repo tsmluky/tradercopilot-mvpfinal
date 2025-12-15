@@ -31,7 +31,7 @@ def get_ohlcv_data(
     ccxt_symbol = f"{base_symbol}/USDT"
     
     # 2. Instanciar Exchange (Binance)
-    exchange = ccxt.binance({'enableRateLimit': True})
+    exchange = ccxt.binance({'enableRateLimit': True, 'timeout': 10000})
     
     print(f"[MARKET DATA] Fetching {limit} candles for {ccxt_symbol} {timeframe} via CCXT...")
 
