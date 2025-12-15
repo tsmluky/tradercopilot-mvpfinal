@@ -446,15 +446,28 @@ def _build_pro_markdown(
     brain: Dict[str, str],
 ) -> str:
     """
-    Construye un bloque Markdown PRO estructurado, sin LLM todavía,
-    combinando:
-
-    - Meta (token, timeframe, user_message)
-    - Señal LITE sugerida (sesgo, niveles)
-    - Contexto RAG (insights, news, onchain, sentiment, snapshot)
+    Construye un prompt y delega en Gemini Flash para el análisis PRO.
     """
+    # 1. Extract context
+    token_up = lite.token
+    tf = lite.timeframe
+    user_msg = (req.user_message or "").strip()
 
-    # --- CONSTRUCCIÓN DEL PROMPT PARA LA IA ---
+    rsi = indicators.get("rsi", "N/D")
+    trend = indicators.get("trend", "NEUTRAL")
+    ema21 = indicators.get("ema21", "N/D")
+    
+    # Format numbers
+    rsi_str = f"{rsi:.1f}" if isinstance(rsi, (int, float)) else str(rsi)
+    ema21_str = f"{ema21:.2f}" if isinstance(ema21, (int, float)) else str(ema21)
+
+    insights = brain.get("insights", "Sin información").strip()
+    news = brain.get("news", "Sin noticias recientes").strip()
+    onchain = brain.get("onchain", "Sin datos onchain relevantes").strip()
+    sentiment_txt = brain.get("sentiment", "Neutral").strip()
+    snapshot = brain.get("snapshot", "").strip()
+
+    # 2. Build Prompt
     from gemini_client import generate_pro
 
     prompt = f"""
@@ -503,128 +516,9 @@ SL: {lite.sl}
 #ANALYSIS_END
 """
 
-    # Llamada a la IA
-    return generate_pro(prompt)        f"- entry_hint: {lite.entry}",
-        f"- tp_hint: {lite.tp}",
-        f"- sl_hint: {lite.sl}",
-        f"- lite_confidence: {lite.confidence}",
-        "- mode: PRO_v1_local",
-        "- rag_sources: insights, news, onchain, sentiment, snapshot",
-    ]
-    params_block = "\n".join(params_lines)
+    # 3. Call AI
+    return generate_pro(prompt)
 
-    # Generate rich, detailed analysis
-    markdown = f"""#ANALYSIS_START
-#CTXT#
-{ctxt_block}
-- Trend cuantizado: {trend}
-- Confidence LITE: {lite.confidence}
-
-#TA#
-**Análisis de Precio:**
-Precio actual alrededor de {lite.entry}. La señal LITE sugiere un sesgo **{lite.direction.upper()}** con una estructura de TP/SL ya cuantificada basada en nuestro algoritmo propietario (lite-rule@v2).
-
-**Estructura de Mercado:**
-El precio se encuentra {'por encima' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'por debajo'} de la EMA21 ({ema21_str}), lo que ayuda a contextualizar la tendencia {trend.lower()} en el timeframe actual. La acción del precio muestra {'momentum alcista sostenido' if lite.direction == 'long' else 'presión bajista consistente'} con volumen {'creciente' if rsi < 50 else 'decreciente'}.
-
-**Indicadores Técnicos Detallados:**
-- **RSI (14):** {rsi_str} - {'Zona de sobreventa, potencial rebote técnico' if isinstance(rsi, (int, float)) and rsi < 30 else 'Zona de sobrecompra, posible corrección' if isinstance(rsi, (int, float)) and rsi > 70 else 'Zona neutral, momentum en construcción'}
-- **EMA21:** {ema21_str} - Actuando como {'soporte dinámico' if isinstance(ema21, (int, float)) and lite.entry > ema21 else 'resistencia dinámica'}
-- **MACD:** Incorporado en señal LITE, {'cruce alcista detectado' if lite.direction == 'long' else 'cruce bajista identificado'}
-- **Volumen:** Perfil de volumen sugiere {'acumulación en rango bajo' if rsi < 50 else 'distribución en rango alto'}
-
-**Niveles Clave Identificados:**
-- Soporte inmediato: {lite.sl} (zona de invalidación)
-- Resistencia inmediata: {lite.tp} (objetivo primario)
-- Soporte secundario: {lite.entry * 0.97:.2f}
-- Resistencia secundaria: {lite.entry * 1.03:.2f}
-
-**Confluencias Técnicas:**
-El setup presenta múltiples confluencias: {'retroceso Fibonacci 0.618' if lite.direction == 'long' else 'extensión Fibonacci 1.618'}, zona de valor del perfil de volumen, y alineación con estructura de swing {'high' if lite.direction == 'short' else 'low'} previo.
-
-#SENTIMENT#
-**Análisis de Sentimiento del Mercado:**
-{sentiment_txt}
-
-**Métricas Sociales:**
-Volumen social en Twitter/X para {token_up}: {'Alto' if rsi > 60 else 'Moderado' if rsi > 40 else 'Bajo'}
-Fear & Greed Index: {65 if lite.direction == 'long' else 35} ({'Greed' if lite.direction == 'long' else 'Fear'})
-Menciones en últimas 24h: {'Incremento del 15%' if lite.direction == 'long' else 'Descenso del 12%'}
-
-**Posicionamiento Institucional:**
-Funding rates en perpetuos: {'Positivo (+0.01%)' if lite.direction == 'long' else 'Negativo (-0.01%)'}, indicando {'sesgo alcista' if lite.direction == 'long' else 'sesgo bajista'} en derivados.
-
-#ONCHAIN#
-**Análisis On-Chain Profundo:**
-{onchain}
-
-**Métricas de Red:**
-- Direcciones activas (24h): {'Incremento del 8%' if lite.direction == 'long' else 'Descenso del 5%'}
-- Flujo neto de exchanges: {'Salidas netas de -2,500' if lite.direction == 'long' else 'Entradas netas de +1,800'}
-- Actividad de ballenas: {'3 transacciones >$1M detectadas (acumulación)' if lite.direction == 'long' else '2 transacciones >$1M detectadas (distribución)'}
-- Supply en exchanges: {'Mínimo de 30 días' if lite.direction == 'long' else 'Máximo de 30 días'}
-
-**Indicadores On-Chain Clave:**
-- MVRV Ratio: {1.2 if lite.direction == 'long' else 0.8} ({'zona de valor' if lite.direction == 'long' else 'zona de riesgo'})
-- NVT Ratio: {'Saludable' if lite.direction == 'long' else 'Elevado'}
-- Holder Distribution: {'Acumulación de holders de largo plazo' if lite.direction == 'long' else 'Distribución de holders de corto plazo'}
-
-#PLAN#
-{plan_core}{extra_user}
-
-**Estrategia de Entrada:**
-1. **Entrada Conservadora:** Esperar retroceso a {lite.entry * 0.995:.2f} con confirmación de volumen
-2. **Entrada Agresiva:** Entrada inmediata en CMP ({lite.entry}) con stop ajustado
-3. **Entrada Escalonada:** 50% en {lite.entry}, 30% en {lite.entry * 0.998:.2f}, 20% en {lite.entry * 0.996:.2f}
-
-**Gestión de Riesgo:**
-- Stop Loss inicial: {lite.sl} (riesgo de {abs((lite.entry - lite.sl) / lite.entry * 100):.1f}%)
-- Take Profit primario: {lite.tp} (beneficio potencial de {abs((lite.tp - lite.entry) / lite.entry * 100):.1f}%)
-- Risk/Reward Ratio: 1:{abs((lite.tp - lite.entry) / (lite.entry - lite.sl)):.2f}
-
-**Ajustes Tácticos Avanzados:**
-- **Disciplina de Entrada:** No perseguir el precio si se aleja más de 1-1.5% de la entrada orientativa ({lite.entry})
-- **Gestión Dinámica:** Mover stop a breakeven tras alcanzar 40% del movimiento esperado
-- **Toma de Beneficios Parcial:** Considerar reducción del 50% de la posición en {(lite.entry + lite.tp) / 2:.2f} (50% del objetivo)
-- **Invalidación:** Cierre inmediato si se rompe {lite.sl} con vela de 4h
-- **Contexto Macro:** Revisar estructura si eventos macro (FOMC, CPI, etc.) generan volatilidad extrema
-
-**Tamaño de Posición Recomendado:**
-- Conservador: 1% del portfolio
-- Moderado: 1.5% del portfolio  
-- Agresivo: 2% del portfolio (máximo recomendado)
-
-#INSIGHT#
-**Contexto Fundamental y Narrativo (RAG):**
-
-**Snapshot en tiempo real:**
-{snapshot if snapshot else "No disponible en este momento."}
-
-**Insights Locales:**
-{insights}
-
-**Noticias Recientes y Narrativa de Mercado:**
-{news}
-
-**Análisis de Correlaciones:**
-{token_up} mantiene una correlación de 0.89 con BTC en el timeframe de 7 días, lo que sugiere que movimientos sistémicos del mercado cripto tendrán impacto directo. Monitorear BTC en niveles clave.
-
-**Catalizadores Potenciales:**
-- Próximos eventos: {'Upgrade de red programado' if lite.direction == 'long' else 'Unlock de tokens programado'}
-- Desarrollos del ecosistema: {'Integración con protocolo DeFi mayor' if lite.direction == 'long' else 'Competencia aumentando market share'}
-- Factores macro: Decisión de tasas de la Fed en 2 semanas
-
-**Escenarios Alternativos:**
-- **Escenario Alcista:** Ruptura de {lite.tp} podría llevar a extensión hacia {lite.tp * 1.05:.2f}
-- **Escenario Bajista:** Pérdida de {lite.sl} podría acelerar caída hacia {lite.sl * 0.97:.2f}
-- **Escenario Lateral:** Consolidación entre {lite.entry * 0.99:.2f} y {lite.entry * 1.01:.2f} antes de dirección clara
-
-#PARAMS#
-{params_block}
-#ANALYSIS_END
-""".strip()
-
-    return markdown
 
 
 # ==== 8. Rutas base ====
