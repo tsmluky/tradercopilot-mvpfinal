@@ -1442,9 +1442,12 @@ async def factory_reset(request: Request):
         from sqlalchemy import text
         
         async with AsyncSessionLocal() as session:
-            # 1. Truncate Signals Table
-            # "DELETE FROM" works everywhere (Postgres/SQLite).
+            # 1. Truncate Dependent Tables First (Foreign Key Constraints)
+            await session.execute(text("DELETE FROM signal_evaluations"))
+            
+            # 2. Truncate Signals Table
             await session.execute(text("DELETE FROM signals"))
+            
             await session.commit()
             
         print("[SYSTEM] ⚠️ FACTORY RESET EXECUTED. DB CLEARED.")
