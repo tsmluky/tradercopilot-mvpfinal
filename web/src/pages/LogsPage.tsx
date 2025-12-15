@@ -120,7 +120,7 @@ export const LogsPage: React.FC = () => {
                 ...item,
                 evaluation: null,
                 evaluationLoading: false,
-                evaluationError: "No evaluation found yet for this signal",
+                evaluationError: "Signal is Active. Result pending...",
               }
               : item
           )
@@ -294,7 +294,7 @@ export const LogsPage: React.FC = () => {
                       {mode === "LITE" && (
                         <td className="py-2 pr-3 align-top text-xs">
                           {evaluationError ? (
-                            <span className="text-red-400">{evaluationError}</span>
+                            <span className="text-amber-400 text-[10px]">{evaluationError}</span>
                           ) : evaluationLoading ? (
                             <span className="text-slate-400">Checking...</span>
                           ) : (

@@ -6,8 +6,16 @@ import { Activity, DollarSign, Zap, RefreshCw, Target, Bot } from 'lucide-react'
 import { api } from '../../services/api';
 import { API_BASE_URL } from '../../constants';
 
+import { MetricCard } from './MetricCard';
+
 export const DashboardHome: React.FC = () => {
-    const [stats, setStats] = useState<any>(null);
+    const [globalStats, setStats] = useState<any>({
+        win_rate: 0,
+        win_rate_change: 0,
+        pnl_7d: 0,
+        pnl_7d_change: 0,
+        active_fleet: 6
+    });
     const [strategies, setStrategies] = useState<any[]>([]);
     const [recentSignals, setRecentSignals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,8 +68,7 @@ export const DashboardHome: React.FC = () => {
     }
 
     const activeStrategies = strategies.filter(s => s.is_active);
-    const pnl7d = stats?.pnl_7d || 0;
-    const winRate = stats?.win_rate_24h ? Math.round(stats.win_rate_24h * 100) : 0;
+    const activeStrategies = strategies.filter(s => s.is_active);
 
     return (
         <div className="space-y-8 pb-12">
@@ -77,62 +84,44 @@ export const DashboardHome: React.FC = () => {
 
                 <div className="flex flex-wrap gap-4">
                     {/* Metric: PnL */}
-                    <div className="bg-slate-900/80 border border-slate-800 p-3 px-5 rounded-xl flex items-center gap-4 min-w-[160px] backdrop-blur-md">
-                        <div className={`p-2 rounded-full ${pnl7d >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                            <DollarSign size={20} />
-                        </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">7d Net PnL</div>
-                            <div className={`text-xl font-mono font-bold ${pnl7d >= 0 ? 'text-white' : 'text-rose-400'}`}>
-                                {pnl7d > 0 ? '+' : ''}{pnl7d} R
-                            </div>
-                        </div>
-                    </div>
+                    <MetricCard
+                        label="7d Net PnL"
+                        value={`${globalStats?.pnl_7d > 0 ? '+' : ''}${globalStats?.pnl_7d || 0} R`}
+                        trend={globalStats?.pnl_7d_change || 0}
+                        icon={DollarSign}
+                    />
 
                     {/* Metric: Active Agents */}
-                    <div className="bg-slate-900/80 border border-slate-800 p-3 px-5 rounded-xl flex items-center gap-4 min-w-[160px] backdrop-blur-md">
-                        <div className="p-2 rounded-full bg-indigo-500/10 text-indigo-400">
-                            <Activity size={20} />
-                        </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Active Fleet</div>
-                            <div className="text-xl font-mono font-bold text-white">
-                                {activeStrategies.length}
-                            </div>
-                        </div>
-                    </div>
+                    <MetricCard
+                        label="Active Agents"
+                        value={activeStrategies.length.toString()}
+                        trend={0}
+                        icon={Activity}
+                    />
 
                     {/* Metric: Win Rate */}
-                    <div className="bg-slate-900/80 border border-slate-800 p-3 px-5 rounded-xl flex items-center gap-4 min-w-[160px] backdrop-blur-md">
-                        <div className={`p-2 rounded-full ${winRate >= 50 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                            <Target size={20} />
-                        </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Win Rate (24h)</div>
-                            <div className="text-xl font-mono font-bold text-white">
-                                {winRate}%
-                            </div>
-                        </div>
-                    </div>
+                    <MetricCard
+                        label="Win Rate (24h)"
+                        value={`${globalStats?.win_rate || 0}%`}
+                        trend={globalStats?.win_rate_change || 0}
+                        icon={Target}
+                    />
 
                     <button
                         onClick={handleRefresh}
-                        className={`p-3 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all ${refreshing ? 'animate-spin' : ''}`}
+                        className={`p-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors ${refreshing ? 'animate-spin' : ''}`}
                     >
                         <RefreshCw size={20} />
                     </button>
                 </div>
             </div>
 
-            {/* 2. My Active Agents (Hero Section) */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-                        <Activity className="text-indigo-400" size={18} />
-                        Active Agents
-                    </h2>
-                </div>
-
+            {/* Active Strategies Grid */}
+            <div className="mb-8">
+                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Activity className="text-indigo-400" size={20} />
+                    Active Agents
+                </h2>
                 {activeStrategies.length === 0 ? (
                     <div className="p-8 border border-dashed border-slate-800 rounded-xl bg-slate-900/50 text-center">
                         <p className="text-slate-500 mb-4">No agents are currently running.</p>

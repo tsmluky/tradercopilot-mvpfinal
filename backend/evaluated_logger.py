@@ -263,8 +263,10 @@ def _evaluate_signal_row(row: Dict[str, str]) -> Dict[str, str]:
                 result = "open"
             move_pct_pct = (entry / price_at_eval - 1.0) * 100.0
 
-        # Ajuste a neutral si el movimiento es insignificante
-        if result == "open" and abs(move_pct_pct) < NEUTRAL_THRESHOLD_PCT:
+        # Ajuste a neutral si el movimiento es insignificante Y ha pasado tiempo (2h)
+        ts_dt = _parse_iso_ts(signal_ts_str)
+        age = datetime.utcnow() - ts_dt
+        if result == "open" and age > timedelta(hours=2) and abs(move_pct_pct) < NEUTRAL_THRESHOLD_PCT:
             result = "neutral"
 
     eval_row = {

@@ -60,6 +60,7 @@ class StrategyScheduler:
         # State tracking for intervals
         self.last_run = {} # {persona_id: timestamp}
         self.processed_signals = {} # {signal_key: timestamp}
+        self.last_signal_direction = {} # {persona_id_token: direction} (For alternation enforcement)
     
     def run(self):
         """Loop principal."""
@@ -103,18 +104,18 @@ class StrategyScheduler:
                         
                         count = 0
                         for sig in signals:
-                            # Deduplication Logic
-                            # Key: persona_id + token + direction + strategy
-                            # We want to allow NEW signals for the same token, but not the SAME signal (same timestamp)
-                            sig_key = f"{p_id}_{sig.token}_{sig.direction}"
-                            last_ts = self.processed_signals.get(sig_key)
+                            # Deduplication Logic 2.0: Strict Alternation & Cooldown
+                            # Key: persona_id + token
+                            # Rule: Cannot emit same direction twice in a row (Visual Clarity for Sale)
+                            state_key = f"{p_id}_{sig.token}"
+                            last_dir = self.last_signal_direction.get(state_key)
                             
-                            # Check if we already processed this exact timestamp or newer
-                            if last_ts and sig.timestamp <= last_ts:
-                                # Duplicate - Skip
+                            if last_dir == sig.direction:
+                                # Skip same-side duplicate to avoid log spam
                                 continue
                             
-                            # It's new!
+                            # Update state
+                            self.last_signal_direction[state_key] = sig.direction
                             self.processed_signals[sig_key] = sig.timestamp
                             
                             # Enriquecer source con el ID de la persona
