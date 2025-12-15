@@ -50,7 +50,13 @@ export const DashboardHistory: React.FC<DashboardHistoryProps> = ({ signals }) =
                         {signals.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="p-8 text-center text-slate-500 italic">
-                                    No recent activity detected from the fleet.
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="relative flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                                        </div>
+                                        <span>All systems nominal. Scanning markets for high-probability setups...</span>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
