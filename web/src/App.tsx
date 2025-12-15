@@ -57,7 +57,7 @@ const App: React.FC = () => {
           <Route path="/strategies/:id" element={<ProtectedRoute><StrategyDetailsPage /></ProtectedRoute>} />
           {/* Mapping old signals path effectively to scanner in case of bookmarks, or just replacing it entirely */}
           <Route path="/signals" element={<Navigate to="/scanner" replace />} />
-          <Route path="/analysis" element={<Navigate to="/scanner" replace />} />
+          <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
           <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />

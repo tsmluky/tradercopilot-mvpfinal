@@ -158,8 +158,22 @@ export const ScannerPage: React.FC = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                 </div>
             ) : signals.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
-                    No signals detected in the active timeframe.
+                <div className="flex flex-col items-center justify-center py-20 text-center bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
+                    <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                        <Radar className="w-8 h-8 text-slate-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-300 mb-2">System Scanning...</h3>
+                    <p className="text-slate-500 max-w-md mx-auto mb-6">
+                        No high-probability anomalies detected in the active timeframe. The autonomous fleet is filtering for quality over quantity.
+                    </p>
+                    <a
+                        href="/analysis"
+                        onClick={(e) => { e.preventDefault(); window.location.href = '/analysis'; }}
+                        className="px-6 py-2 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-all font-semibold text-sm flex items-center gap-2"
+                    >
+                        <Zap size={16} />
+                        Launch Manual Analysis
+                    </a>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

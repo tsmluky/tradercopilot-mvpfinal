@@ -53,6 +53,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const navItems = [
         { id: '/', label: 'Overview', icon: LayoutDashboard },
         { id: '/scanner', label: 'Radar', icon: Radar },
+        { id: '/analysis', label: 'Analyst', icon: Crosshair },
         { id: '/strategies', label: 'Quant', icon: Activity },
         { id: '/backtest', label: 'Backtest', icon: FlaskConical },
         { id: '/logs', label: 'System Logs', icon: Terminal },
