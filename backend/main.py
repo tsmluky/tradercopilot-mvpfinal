@@ -355,7 +355,7 @@ def _build_lite_from_market(token: str, timeframe: str, market: Dict[str, Any]) 
 # ==== 7. Capa RAG básica (vía rag_context) ====
 
 
-def _load_brain_context(token: str) -> Dict[str, str]:
+def _load_brain_context(token: str, market_data: Dict[str, Any] = None) -> Dict[str, str]:
     """
     Wrapper sobre build_token_context(token) para mantener compatibilidad
     con el resto del código PRO.
@@ -368,7 +368,7 @@ def _load_brain_context(token: str) -> Dict[str, str]:
     - snapshot
     - raw_context
     """
-    token_ctx = build_token_context(token)
+    token_ctx = build_token_context(token, market_data)
     return {
         "insights": token_ctx.get("insights", "") or "",
         "news": token_ctx.get("news", "") or "",
@@ -726,7 +726,7 @@ def analyze_lite(req: LiteReq):
     lite_signal, indicators = _build_lite_from_market(token, tf, market)
 
     # 3) Capa RAG básica (enriquecimiento de contexto para Lite)
-    brain_ctx = _load_brain_context(token)
+    brain_ctx = _load_brain_context(token, market)
 
     sentiment_txt = brain_ctx.get("sentiment", "").strip()
     insights_txt = brain_ctx.get("insights", "").strip()
@@ -851,7 +851,7 @@ def analyze_pro(req: ProReq):
     lite_signal, indicators = _build_lite_from_market(token, tf, market)
 
     # 3) Contexto RAG (wrapper sobre rag_context)
-    brain_ctx = _load_brain_context(token)
+    brain_ctx = _load_brain_context(token, market)
 
     # 4) Markdown PRO
     markdown = _build_pro_markdown(req, lite_signal, indicators, brain_ctx)
