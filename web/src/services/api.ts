@@ -101,14 +101,8 @@ export async function analyzeLite(token: string, timeframe: string): Promise<Sig
 
     return (await res.json()) as SignalLite;
   } catch (err) {
-    console.warn("analyzeLite failed, using mock", err);
-    const freshMock: SignalLite = {
-      ...(MOCK_LITE_SIGNAL as SignalLite),
-      token: token.toUpperCase(),
-      timeframe,
-      timestamp: new Date().toISOString(),
-    };
-    return freshMock;
+    console.error("analyzeLite failed", err);
+    throw err; // Propagate error, do not mock
   }
 }
 
@@ -120,11 +114,12 @@ export async function analyzePro(
   const body = { token, timeframe, context: { rag } };
 
   try {
+    // Increased timeout for PRO analysis (AI generation can take time)
     const res = await fetchWithTimeout(`${API_BASE_URL}/analyze/pro`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }, 60000); // 60s timeout
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
@@ -138,8 +133,8 @@ export async function analyzePro(
 
     return { raw } as ProResponse;
   } catch (err) {
-    console.warn("analyzePro failed, using mock", err);
-    return { raw: MOCK_PRO_RESPONSE } as ProResponse;
+    console.error("analyzePro failed", err);
+    throw err; // Propagate error, do not mock
   }
 }
 
@@ -166,13 +161,8 @@ export async function analyzeAdvisor(payload: AdvisorPayload): Promise<AdvisorRe
 
     return (await res.json()) as AdvisorResponse;
   } catch (err) {
-    console.warn("analyzeAdvisor failed, using mock", err);
-    return {
-      ...(MOCK_ADVISOR_RESPONSE as AdvisorResponse),
-      token: payload.token.toUpperCase(),
-      direction: payload.direction,
-      entry: payload.entry,
-    };
+    console.error("analyzeAdvisor failed", err);
+    throw err;
   }
 }
 

@@ -61,10 +61,9 @@ export const AnalysisPage: React.FC = () => {
               type="button"
               onClick={() => setMode(m)}
               className={`px-4 py-2 rounded-full text-sm font-medium border transition
-                ${
-                  mode === m
-                    ? "bg-indigo-500 text-white border-indigo-400 shadow"
-                    : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"
+                ${mode === m
+                  ? "bg-indigo-500 text-white border-indigo-400 shadow"
+                  : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"
                 }`}
             >
               {m === "LITE" ? "LITE · Quick Signal" : "PRO · Full Analysis"}
@@ -141,57 +140,75 @@ export const AnalysisPage: React.FC = () => {
         )}
 
         {mode === "LITE" && liteResult && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-100">
-                {liteResult.token} · {liteResult.timeframe}
-              </span>
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  liteResult.direction.toLowerCase() === "long"
-                    ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/40"
-                    : "bg-rose-500/10 text-rose-300 border border-rose-500/40"
-                }`}
-              >
-                {liteResult.direction.toUpperCase()}
-              </span>
-              <span className="text-xs text-slate-500">
-                {new Date(liteResult.timestamp).toLocaleString()}
-              </span>
-            </div>
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            {/* Header / Meta */}
+            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                  <span className="font-bold text-indigo-400">{liteResult.token}</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-100 uppercase tracking-tight">Signal Generated</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${liteResult.direction.toLowerCase() === "long"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                      }`}>
+                      {liteResult.direction}
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-mono">
+                    {liteResult.timeframe} • {new Date(liteResult.timestamp).toLocaleString()}
+                  </span>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
-                <div className="text-xs text-slate-400">Entry</div>
-                <div className="text-slate-50 font-semibold">
-                  {liteResult.entry?.toFixed?.(2) ?? liteResult.entry}
-                </div>
-              </div>
-              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
-                <div className="text-xs text-slate-400">Take Profit</div>
-                <div className="text-emerald-300 font-semibold">
-                  {liteResult.tp?.toFixed?.(2) ?? liteResult.tp}
-                </div>
-              </div>
-              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
-                <div className="text-xs text-slate-400">Stop Loss</div>
-                <div className="text-rose-300 font-semibold">
-                  {liteResult.sl?.toFixed?.(2) ?? liteResult.sl}
-                </div>
-              </div>
-              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
-                <div className="text-xs text-slate-400">Confidence</div>
-                <div className="text-slate-50 font-semibold">
+              {/* Confidence Ring */}
+              <div className="text-right">
+                <div className="text-xs text-slate-400 font-medium mb-1">Confidence</div>
+                <div className={`text-xl font-bold ${liteResult.confidence >= 0.8 ? 'text-emerald-400' :
+                    liteResult.confidence >= 0.6 ? 'text-amber-400' : 'text-slate-400'
+                  }`}>
                   {(liteResult.confidence * 100).toFixed(0)}%
                 </div>
               </div>
             </div>
 
-            <div className="mt-2">
-              <div className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">
-                Rationale
+            {/* Execution Block */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Entry */}
+              <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-800/50 flex flex-col items-center justify-center text-center group hover:border-indigo-500/30 transition-colors">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Entry Zone</span>
+                <span className="text-2xl font-mono text-slate-100 font-bold group-hover:scale-105 transition-transform">
+                  {typeof liteResult.entry === 'number' ? liteResult.entry.toFixed(2) : liteResult.entry}
+                </span>
               </div>
-              <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+
+              {/* Take Profit */}
+              <div className="p-4 bg-emerald-950/20 rounded-xl border border-emerald-900/40 flex flex-col items-center justify-center text-center group hover:border-emerald-500/30 transition-colors">
+                <span className="text-xs font-bold text-emerald-600/80 uppercase tracking-wider mb-2">Take Profit</span>
+                <span className="text-2xl font-mono text-emerald-400 font-bold group-hover:scale-105 transition-transform">
+                  {typeof liteResult.tp === 'number' ? liteResult.tp.toFixed(2) : liteResult.tp}
+                </span>
+              </div>
+
+              {/* Stop Loss */}
+              <div className="p-4 bg-rose-950/20 rounded-xl border border-rose-900/40 flex flex-col items-center justify-center text-center group hover:border-rose-500/30 transition-colors">
+                <span className="text-xs font-bold text-rose-600/80 uppercase tracking-wider mb-2">Stop Loss</span>
+                <span className="text-2xl font-mono text-rose-400 font-bold group-hover:scale-105 transition-transform">
+                  {typeof liteResult.sl === 'number' ? liteResult.sl.toFixed(2) : liteResult.sl}
+                </span>
+              </div>
+            </div>
+
+            {/* Rationale Section */}
+            <div className="p-5 bg-slate-900/50 rounded-xl border border-slate-800 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-transparent"></div>
+              <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                Analysis Rationale
+              </h3>
+              <p className="text-slate-400 text-sm leading-7 font-light">
                 {liteResult.rationale}
               </p>
             </div>
@@ -204,7 +221,7 @@ export const AnalysisPage: React.FC = () => {
               PRO raw analysis
             </div>
             <pre className="mt-1 bg-slate-950/60 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 max-h-[480px] overflow-auto whitespace-pre-wrap">
-{proResult.raw}
+              {proResult.raw}
             </pre>
           </div>
         )}
