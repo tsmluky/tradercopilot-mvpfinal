@@ -122,7 +122,9 @@ class StrategyScheduler:
                             self.last_signal_direction[ts_key] = sig.direction
                             
                             # Enriquecer source con el ID de la persona
-                            sig.source = f"Marketplace:{p_id}"
+                            # sig.source = f"Marketplace:{p_id}" 
+                            # FIX user confusion: Use the Human Readable Name (e.g. "The Scalper")
+                            sig.source = persona['name']
                             log_signal(sig)
                             count += 1
                             print(f"    ⭐ SIGNAL: {sig.direction} @ {sig.entry}")
