@@ -1,20 +1,5 @@
-El sentimiento alrededor de ETH es altamente cíclico:
-
-- Fases de euforia: narrativa de "ultrasound money", DeFi 2.0, NFTs, etc.
-- Fases de miedo: hacks, regulación o colapsos de protocolos presionan el precio.
-
+Resiliencia notable frente a BTC, con el par ETH/BTC mostrando signos de suelo en soporte histórico.
 ---
-
-Interpretación para TraderCopilot:
-
-- Señal alcista en miedo extremo → posible oportunidad táctica, pero con stops
-  respetados y tamaño moderado.
-- Señal alcista en plena euforia, lejos de soportes → se trata con escepticismo
-  y foco en gestión de beneficios.
-- Señal bajista en pánico puede ser más útil para no perseguir shorts tardíos
-  que para abrir nuevas posiciones agresivas.
-
+Interés institucional renovado tras claridad regulatoria sobre su estatus como commodity.
 ---
-
-El objetivo es que el sistema recuerde que el mismo setup técnico no tiene el
-mismo edge en todos los estados emocionales del mercado.
+Actividad en Layer 2 sigue marcando máximos históricos, lo que valida la tesis de escalabilidad a largo plazo.

@@ -1,19 +1,5 @@
-El sentimiento en Solana suele ser binario:
-
-- Fases de euforia extrema cuando el ecosistema está "de moda".
-- Fases de rechazo duro cuando aparecen problemas técnicos o narrativos.
-
+El sentimiento institucional se mantiene alcista con acumulación sostenida en zonas de soporte clave.
 ---
-
-Interpretación en TraderCopilot:
-
-- Señales alcistas en euforia → gestión de riesgo agresiva, no persecución ciega.
-- Señales alcistas en apatía o rechazo, con estructura técnica de acumulación,
-  pueden ofrecer los mejores puntos de entrada.
-- Señales bajistas en capitulación se usan más para reducir exposición que
-  para buscar shorts sin un setup muy definido.
-
+Los indicadores de sentimiento retail muestran cautela, lo que suele preceder a movimientos impulsivos al alza ("Wall of Worry").
 ---
-
-El objetivo es que las señales no se interpreten aisladas de la temperatura
-emocional del mercado alrededor de SOL.
+El Funding Rate se mantiene neutral, sugiriendo un mercado saludable sin sobre-apalancamiento excesivo en derivados.

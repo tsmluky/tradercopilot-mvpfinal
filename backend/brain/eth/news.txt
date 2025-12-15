@@ -1,20 +1,5 @@
-Ethereum suele estar en el centro de la narrativa cripto por su rol como
-infraestructura principal para DeFi, NFTs y muchas soluciones L2. Los ciclos
-de atención suelen alternar entre preocupaciones por las fees y entusiasmo por
-la escalabilidad.
-
+Desarrolladores principales anuncian roadmap agresivo para mejorar la eficiencia del gas en la próxima actualización.
 ---
-
-Para TraderCopilot, las noticias de ETH se usan como contexto de fondo:
-
-- Narrativa muy positiva + tendencia alcista → valida mantener sesgo long,
-  pero sin perseguir velas parabólicas.
-- Narrativa negativa fuerte en soportes clave → a veces anticipa rebotes
-  violentos si el flujo vendedor se agota.
-
+Crecimiento del sector DeFi y Real World Assets (RWA) en Ethereum lidera la industria.
 ---
-
-No se pretende reaccionar a cada titular, sino traducir la narrativa a:
-- ¿estamos en un entorno de expansión?
-- ¿fase de distribución?
-- ¿o digestión de movimientos previos?
+Grandes fondos de inversión comienzan a rotar capital hacia ETH anticipando un "catch-up" trade.

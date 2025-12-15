@@ -1,18 +1,5 @@
-La narrativa de Solana alterna entre:
-
-- "Infraestructura de alta velocidad" para DeFi y trading especulativo.
-- Debates sobre estabilidad, centralización, uptime y resiliencia.
-- Ciclos de memecoins y actividad extrema en su ecosistema.
-
+El ecosistema Solana sigue atrayendo volumen DEX récord, superando a competidores en métricas de actividad diaria.
 ---
-
-En TraderCopilot, las noticias de SOL sirven para:
-
-- Entender si un rally está impulsado por flujo especulativo de corto plazo.
-- Ajustar la agresividad de las entradas/salidas en función de la fragilidad
-  de la narrativa dominante.
-
+Rumores sobre nuevas integraciones institucionales están impulsando la narrativa de adopción masiva a corto plazo.
 ---
-
-No se pretende seguir cada drama de comunidad, pero sí recordar que la
-volatilidad narrativa de Solana es parte del riesgo operacional.
+La reciente actualización de la red ha mejorado la estabilidad, aumentando la confianza de los validadores y desarrolladores.
