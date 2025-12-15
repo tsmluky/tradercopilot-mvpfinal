@@ -42,14 +42,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* DESKTOP SIDEBAR (Hidden on Mobile) */}
         <div className="hidden md:flex w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex-col z-20">
           {/* Brand */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-800">
+          <Link to="/" className="h-16 flex items-center px-6 border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20">
               <Activity className="text-white" size={20} />
             </div>
             <span className="ml-3 font-bold text-lg tracking-tight text-white">
               Trader<span className="text-emerald-400">Copilot</span>
             </span>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">

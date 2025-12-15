@@ -109,7 +109,16 @@ def build_token_context(token: str, market_data: Optional[Dict[str, Any]] = None
         # Minimal dummy data to prevent crash if backend didn't pass it yet
         market_data = {"price": 0, "change_24h": 0, "rsi": 50, "trend": "NEUTRAL"}
         
-    dynamic = generate_narrative(token_upper, market_data)
+    try:
+        dynamic = generate_narrative(token_upper, market_data)
+    except Exception as e:
+        print(f"[RAG CONTEXT] ⚠️ Error generating narrative for {token}: {e}")
+        # Fallback safe
+        dynamic = {
+            "news": "Análisis técnico en curso.",
+            "sentiment": "Mercado mixto a la espera de dirección.",
+            "insights": "Monitorear volumen en zonas clave."
+        }
 
     # 3. Decidir Fuente Final (Preferimos Dynamic si no hay File, o mezclamos)
     # Estrategia: "Dynamic First" para Sentiment/News (más fresco), "File First" para Insights (más profundo si existe)

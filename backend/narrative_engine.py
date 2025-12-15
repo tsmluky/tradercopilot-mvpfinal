@@ -60,6 +60,26 @@ NEWS_TEMPLATES = {
         "Demanda de oráculos seguros crítica para la nueva ola de RWA (Real World Assets).",
         "Integraciones cross-chain aumentan la utilidad del token de infraestructura.",
     ],
+    "L0_INTEROP": [
+         "La narrativa de interoperabilidad gana tracción con nuevas actualizaciones del ecosistema.",
+         "Puentes cross-chain registran volúmenes récord, beneficiando al token nativo.",
+         "Subastas de parachains/zonas renuevan el interés fundamental en la red.",
+    ],
+    "L2_SCALING": [
+         "Las soluciones de capa 2 absorben una cuota de mercado creciente de transacciones.",
+         "Reducción de fees tras actualización impulsa la adopción de usuarios activos.",
+         "La narrativa de escalabilidad modular favorece la valoración actual.",
+    ],
+    "EXCHANGE": [
+         "Aumento en reservas del exchange y quema de tokens trimestral apoyan el precio.",
+         "El lanzamiento de nuevas IEOs en el Launchpad incrementa la demanda del token.",
+         "Volumen de trading del exchange se mantiene robusto pese a condiciones macro.",
+    ],
+    "PAYMENTS": [
+         "Adopción en pasarelas de pago globales valida la utilidad real del activo.",
+         "Incremento en transacciones diarias muestra un uso orgánico sostenido.",
+         "La narrativa de 'dinero duro' o 'plata digital' resurge ante la inflación fiat.",
+    ],
     "GENERIC_BULL": [
         "Sentimiento general del mercado favorece activos de riesgo tras datos macro positivos.",
         "Rotación de capital desde stablecoins indica apetito por riesgo.",
