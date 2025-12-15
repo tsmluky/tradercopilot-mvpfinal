@@ -43,7 +43,7 @@ SYSTEM_PERSONAS = [
         "win_rate": "35%",
         "frequency": "High (16 trades/day)",
         "color": "cyan",
-        "is_active": True,
+        "is_active": False,
         "is_custom": False
     },
     {
