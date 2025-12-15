@@ -745,24 +745,36 @@ def analyze_lite(req: LiteReq):
     except Exception:
         snapshot = ""
 
-    # 3.2) Selección ligera / rotación de snippets para evitar sensación de "copypaste"
-    context_snippets: List[str] = []
-    if snapshot:
-        context_snippets.append(f"Snapshot mercado: {snapshot}.")
-    if sentiment_txt:
-        context_snippets.append(sentiment_txt.splitlines()[0])
-    if insights_txt:
-        context_snippets.append(insights_txt.splitlines()[0])
-    if news_txt:
-        context_snippets.append(news_txt.splitlines()[0])
+    # 3.2) Selección enriquecida de contexto (Base + Snapshot + Sentiment + Insight)
+    context_parts = []
+    
+    # Base rationale from strategy
+    if lite_signal.rationale:
+        context_parts.append(lite_signal.rationale)
 
-    if context_snippets:
-        import random
-        extra_context = random.choice(context_snippets).strip()
-        lite_signal.rationale = f"{lite_signal.rationale} | Ctx: {extra_context}"
-        # Reaplicar límite duro de 240 caracteres
-        if len(lite_signal.rationale) > 240:
-            lite_signal.rationale = lite_signal.rationale[:237] + "..."
+    # Snapshot hard data
+    if snapshot:
+        context_parts.append(f"Mkup: {snapshot}.")
+
+    # Sentiment & Insights
+    if sentiment_txt:
+        context_parts.append(f"Sent: {sentiment_txt.splitlines()[0]}.")
+    if insights_txt:
+        context_parts.append(f"Insight: {insights_txt.splitlines()[0]}.")
+    
+    # News (Only if brief)
+    if news_txt:
+        news_headline = news_txt.splitlines()[0]
+        if len(news_headline) < 80:
+             context_parts.append(f"News: {news_headline}.")
+
+    # Combine all
+    full_rationale = " | ".join(context_parts)
+    lite_signal.rationale = full_rationale
+
+    # Reaplicar límite (aumentado a 500 para permitir más detalle)
+    if len(lite_signal.rationale) > 500:
+        lite_signal.rationale = lite_signal.rationale[:497] + "..."
 
     # 3.3) Adjuntar metadatos RAG a los indicadores (para UI / debugging)
     indicators["rag"] = {

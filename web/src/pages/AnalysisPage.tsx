@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { analyzeLite, analyzePro } from "../services/api";
 import type { SignalLite, ProResponse } from "../types";
+import { ProAnalysisViewer } from "../components/ProAnalysisViewer";
+import { Copy, Check, Share2 } from "lucide-react";
 
 type Mode = "LITE" | "PRO";
 
@@ -17,20 +19,22 @@ export const AnalysisPage: React.FC = () => {
 
   const [liteResult, setLiteResult] = useState<SignalLite | null>(null);
   const [proResult, setProResult] = useState<ProResponse | null>(null);
+  const [liteCopied, setLiteCopied] = useState(false);
 
   async function handleGenerate() {
     setError(null);
     setIsLoading(true);
+    // Clear previous results to avoid confusion
+    setLiteResult(null);
+    setProResult(null);
 
     try {
       if (mode === "LITE") {
         const data = await analyzeLite(token, timeframe);
         setLiteResult(data);
-        setProResult(null);
       } else {
         const data = await analyzePro(token, timeframe, true);
         setProResult(data);
-        setLiteResult(null);
       }
     } catch (err: any) {
       console.error("Error generating analysis", err);
@@ -39,6 +43,21 @@ export const AnalysisPage: React.FC = () => {
       setIsLoading(false);
     }
   }
+
+  const handleCopyLite = () => {
+    if (!liteResult) return;
+    const text = `⚡ *TRADER COPILOT LITE* ⚡\n` +
+      `Asset: ${liteResult.token}\n` +
+      `Signal: ${liteResult.direction} (Confidence: ${(liteResult.confidence * 100).toFixed(0)}%)\n` +
+      `Entry: ${liteResult.entry}\n` +
+      `TP: ${liteResult.tp}\n` +
+      `SL: ${liteResult.sl}\n\n` +
+      `Rationale: ${liteResult.rationale}`;
+
+    navigator.clipboard.writeText(text);
+    setLiteCopied(true);
+    setTimeout(() => setLiteCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -130,7 +149,18 @@ export const AnalysisPage: React.FC = () => {
 
       {/* Result Card */}
       <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-        <h2 className="text-sm font-semibold text-slate-200 mb-3">Result</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-sm font-semibold text-slate-200">Analysis Result</h2>
+          {mode === "LITE" && liteResult && (
+            <button
+              onClick={handleCopyLite}
+              className="text-xs flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
+            >
+              {liteCopied ? <Check size={14} className="text-green-500" /> : <Share2 size={14} />}
+              {liteCopied ? "Copied" : "Share Signal"}
+            </button>
+          )}
+        </div>
 
         {!liteResult && !proResult && (
           <p className="text-sm text-slate-500">
@@ -216,14 +246,7 @@ export const AnalysisPage: React.FC = () => {
         )}
 
         {mode === "PRO" && proResult && (
-          <div className="mt-2">
-            <div className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">
-              PRO raw analysis
-            </div>
-            <pre className="mt-1 bg-slate-950/60 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 max-h-[480px] overflow-auto whitespace-pre-wrap">
-              {proResult.raw}
-            </pre>
-          </div>
+          <ProAnalysisViewer raw={proResult.raw} token={token} />
         )}
       </div>
     </div>
