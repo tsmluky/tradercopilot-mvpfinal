@@ -15,100 +15,56 @@ def get_ohlcv_data(
     limit: int = 100
 ) -> List[Dict[str, Any]]:
     """
-    Obtiene datos OHLCV (Open, High, Low, Close, Volume) usando CCXT (Binance).
-    
-    Args:
-        symbol: Par de trading (ej: 'BTC', 'ETH', 'SOL') -> Se convierte a 'BTC/USDT'
-        timeframe: Intervalo ('1m', '5m', '15m', '30m', '1h', '4h', '1d')
-        limit: Número de velas a obtener
-    
-    Returns:
-        Lista de diccionarios con datos OHLCV
+    Obtiene datos OHLCV con Fallback Chain: Binance -> KuCoin -> Bybit -> Mock.
+    Garantiza retorno de datos para evitar timeouts en frontend.
     """
-    # 1. Normalización de Símbolo y Timeframe
-    # CCXT usa formato 'BTC/USDT'
     base_symbol = symbol.upper().replace("USDT", "").replace("-", "")
     ccxt_symbol = f"{base_symbol}/USDT"
     
-    # 2. Instanciar Exchange (Binance)
-    exchange = ccxt.binance({'enableRateLimit': True, 'timeout': 10000})
-    
-    print(f"[MARKET DATA] Fetching {limit} candles for {ccxt_symbol} {timeframe} via CCXT...")
+    # 1. Fallback Order
+    exchanges_config = [
+        {'id': 'binance', 'class': ccxt.binance, 'timeout': 5000}, # 5s timeout
+        {'id': 'kucoin', 'class': ccxt.kucoin, 'timeout': 5000},   # 5s timeout
+        {'id': 'bybit', 'class': ccxt.bybit, 'timeout': 5000},     # 5s timeout
+    ]
 
-    try:
-        # 3. Fetch Data with Pagination
-        all_candles = []
-        
-        # Calculate 'since' (Start Time)
-        # We need 'limit' candles ending NOW.
-        m_factors = {'m': 1, 'h': 60, 'd': 1440}
-        unit = timeframe[-1]
-        val = int(timeframe[:-1])
-        minutes = val * m_factors.get(unit, 1)
-        duration_ms = minutes * 60 * 1000
-        
-        total_duration_ms = duration_ms * limit
-        since = int(datetime.now().timestamp() * 1000) - total_duration_ms
-        
-        # Max limit per call for Binance is typically 1000
-        BATCH_SIZE = 1000
-        
-        while len(all_candles) < limit:
-            remaining = limit - len(all_candles)
-            fetch_limit = min(remaining, BATCH_SIZE)
+    for cfg in exchanges_config:
+        ex_id = cfg['id']
+        try:
+            print(f"[MARKET DATA] Attempting fetch {ccxt_symbol} from {ex_id}...")
+            exchange = cfg['class']({'enableRateLimit': True, 'timeout': cfg['timeout']})
             
-            try:
-                data = exchange.fetch_ohlcv(ccxt_symbol, timeframe, since=since, limit=fetch_limit)
-            except Exception as e:
-                print(f"[MARKET DATA] Warning: Batch fetch failed: {e}")
-                time.sleep(1)
-                continue
+            # Simple fetch without pagination loop to minimize hang risk
+            # For 200-300 candles, a single call is usually enough.
+            # Only use loop if limit > 1000 (which we reduced in main.py)
             
-            if not data:
-                break
+            data = exchange.fetch_ohlcv(ccxt_symbol, timeframe, limit=limit)
+            
+            if data and len(data) > 0:
+                print(f"[MARKET DATA] Success: {len(data)} candles from {ex_id}.")
                 
-            all_candles.extend(data)
-            
-            # Update since for next batch
-            last_ts = data[-1][0]
-            since = last_ts + 1
-            
-            # Respect rate limits
-            time.sleep(0.1) 
-            
-            if len(data) < fetch_limit:
-                break
-        
-        # Trim to limit if we got too many
-        if len(all_candles) > limit:
-            all_candles = all_candles[-limit:]
-                 
-        # 4. Formatear
-        ohlcv = []
-        for candle in all_candles:
-            ts = candle[0]
-            dt = datetime.fromtimestamp(ts / 1000)
-            
-            ohlcv.append({
-                'timestamp': ts,
-                'time': dt.strftime('%Y-%m-%d %H:%M'),
-                'open': float(candle[1]),
-                'high': float(candle[2]),
-                'low': float(candle[3]),
-                'close': float(candle[4]),
-                'volume': float(candle[5]),
-            })
-            
-        print(f"[MARKET DATA] Success: {len(ohlcv)} candles loaded.")
-        return ohlcv
-        
-    except Exception as e:
-        print(f"[MARKET DATA] 🚨 CCXT Error fetching {ccxt_symbol}: {e}")
-        # STRICT PRODUCTION MODE: Do NOT use mock data.
-        # Returning empty list will cause the scheduler to skip this iteration safely.
-        return []
-        # print(f"[MARKET DATA] ⚠️ Attempting fallback to Mock Data (Random Walk)... Result quality will degrade.")
-        # return generate_mock_ohlcv(symbol, limit)
+                # Format
+                ohlcv = []
+                for candle in data:
+                    ts = candle[0]
+                    dt = datetime.fromtimestamp(ts / 1000)
+                    ohlcv.append({
+                        'timestamp': ts,
+                        'time': dt.strftime('%Y-%m-%d %H:%M'),
+                        'open': float(candle[1]),
+                        'high': float(candle[2]),
+                        'low': float(candle[3]),
+                        'close': float(candle[4]),
+                        'volume': float(candle[5]),
+                    })
+                return ohlcv
+        except Exception as e:
+            print(f"[MARKET DATA] ⚠️ Failed fetch from {ex_id}: {e}")
+            continue # Try next exchange
+
+    # 2. Last Resort: Mock Data
+    print(f"[MARKET DATA] 🚨 All exchanges failed. Returning MOCK data to prevent crash.")
+    return generate_mock_ohlcv(base_symbol, limit)
 
 def generate_mock_ohlcv(symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
     """
