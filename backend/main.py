@@ -1424,6 +1424,35 @@ def toggle_strategy_active(id: str):
 
         raise HTTPException(status_code=404, detail="Strategy not found")
         
-    except Exception as e:
-        print(f"Error toggling strategy: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==== 10. System Tools ====
+
+@app.post("/system/reset")
+async def factory_reset(request: Request):
+    """
+    FACTORY RESET PROTECCION CIVIL
+    Borra TODAS las señales y datos de la base de datos.
+    Se usa para demos limpias o reiniciar el entorno.
+    """
+    try:
+        from database import AsyncSessionLocal
+        from sqlalchemy import text
+        
+        async with AsyncSessionLocal() as session:
+            # 1. Truncate Signals Table
+            # "DELETE FROM" works everywhere (Postgres/SQLite).
+            await session.execute(text("DELETE FROM signals"))
+            await session.commit()
+            
+        print("[SYSTEM] ⚠️ FACTORY RESET EXECUTED. DB CLEARED.")
+        return {"status": "ok", "message": "Database cleared successfully. System ready for new deployment."}
+            
+    except Exception as e:
+        print(f"[SYSTEM] Reset Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
