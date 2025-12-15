@@ -22,13 +22,16 @@ interface DashboardHistoryProps {
 export const DashboardHistory: React.FC<DashboardHistoryProps> = ({ signals }) => {
     return (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <History className="w-5 h-5 text-indigo-400" />
-                    Fleet Activity
-                </h3>
-                <Link to="/logs" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors">
-                    View System Logs <ArrowRight size={14} />
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <History size={18} className="text-slate-400" />
+                    <div>
+                        <h2 className="text-lg font-bold text-white">Live Operations Feed</h2>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Real-time execution log</p>
+                    </div>
+                </div>
+                <Link to="/logs" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
+                    View System Logs <ArrowRight size={12} />
                 </Link>
             </div>
 
@@ -75,8 +78,8 @@ export const DashboardHistory: React.FC<DashboardHistoryProps> = ({ signals }) =
                                     </td>
                                     <td className="p-4">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase ${sig.direction.toLowerCase() === 'long'
-                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                                             }`}>
                                             {sig.direction === 'long' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                                             {sig.direction}
@@ -88,8 +91,8 @@ export const DashboardHistory: React.FC<DashboardHistoryProps> = ({ signals }) =
                                     <td className="p-4 text-center">
                                         {sig.status && sig.status !== 'OPEN' ? (
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${['WIN', 'TP'].some(s => sig.status.includes(s)) || (sig.pnl && sig.pnl > 0)
-                                                    ? 'text-emerald-400 bg-emerald-500/10'
-                                                    : 'text-rose-400 bg-rose-500/10'
+                                                ? 'text-emerald-400 bg-emerald-500/10'
+                                                : 'text-rose-400 bg-rose-500/10'
                                                 }`}>
                                                 {sig.status} {sig.pnl ? `(${sig.pnl > 0 ? '+' : ''}${sig.pnl}R)` : ''}
                                             </span>
