@@ -10,7 +10,8 @@ import {
     Activity,
     Terminal,
     LogOut,
-    FlaskConical
+    FlaskConical,
+    Crosshair
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationCenter } from '../NotificationCenter';
