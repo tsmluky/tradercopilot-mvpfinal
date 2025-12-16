@@ -6,7 +6,6 @@ Strategy Base Module for TraderCopilot Signal Hub.
 from .base import Strategy, StrategyMetadata
 
 # Import Strategy Implementations
-from .donchian import DonchianStrategy
 from .DonchianBreakoutV2 import DonchianBreakoutV2
 from .ma_cross import MACrossStrategy
 from .supertrend_flow import SuperTrendFlowStrategy
@@ -19,7 +18,6 @@ from .TrendFollowingNative import TrendFollowingNative
 __all__ = [
     "Strategy",
     "StrategyMetadata",
-    "DonchianStrategy",
     "DonchianBreakoutV2",
     "MACrossStrategy",
     "SuperTrendFlowStrategy",

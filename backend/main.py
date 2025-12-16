@@ -104,13 +104,13 @@ async def startup():
     from strategies.registry import get_registry
     from strategies.example_rsi_macd import RSIMACDDivergenceStrategy
     from strategies.ma_cross import MACrossStrategy
-    from strategies.donchian import DonchianStrategy
+    from strategies.DonchianBreakoutV2 import DonchianBreakoutV2
     from strategies.bb_mean_reversion import BBMeanReversionStrategy
     
     registry = get_registry()
     registry.register(RSIMACDDivergenceStrategy)
     registry.register(MACrossStrategy)
-    registry.register(DonchianStrategy)
+    registry.register(DonchianBreakoutV2)
     registry.register(BBMeanReversionStrategy)
     print("✅ Strategies registered\n")
 
