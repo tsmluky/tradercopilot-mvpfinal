@@ -240,7 +240,19 @@ async def _build_pro_markdown(
     snapshot = brain.get("snapshot", "").strip()
 
     # 2. Build Prompt
-    from gemini_client import generate_pro
+    # from gemini_client import generate_pro  <-- REMOVED
+    from core.ai_service import get_ai_service
+    
+    system_instruction = (
+        "Eres TraderCopilot, un analista técnico de élite institucional y asesor de posiciones para trading.\n"
+        "Tu objetivo es impresionar al usuario con la profundidad y claridad de tu análisis.\n"
+        "Debes responder SIEMPRE ÚNICAMENTE con un bloque de texto formateado entre "
+        "#ANALYSIS_START y #ANALYSIS_END, manteniendo las secciones requeridas: "
+        "#CTXT# (Contexto de mercado), #TA# (Análisis Técnico Institucional), #PLAN# (Estrategia precisa), "
+        "#INSIGHT# (Dato clave OnChain/Fundamental), #PARAMS# (Niveles exactos).\n"
+        "El idioma de respuesta debe ser SIEMPRE ESPAÑOL (Castellano) de España, tono profesional, serio y directo al grano.\n"
+        "Usa terminología técnica correcta (Order Blocks, FVG, Liquidez, Estructura de Mercado)."
+    )
 
     prompt = f"""
 Has recibido una solicitud de análisis PRO para {token_up} en timeframe {tf}.
@@ -288,6 +300,11 @@ SL: {lite.sl}
 #ANALYSIS_END
 """
 
-    # 3. Offload blocking LLM call to threadpool
+    # 3. Offload blocking LLM call to threadpool (using ai_service)
     from fastapi.concurrency import run_in_threadpool
-    return await run_in_threadpool(generate_pro, prompt)
+    
+    def _generate_safe():
+        service = get_ai_service()
+        return service.generate_analysis(prompt, system_instruction=system_instruction)
+
+    return await run_in_threadpool(_generate_safe)
