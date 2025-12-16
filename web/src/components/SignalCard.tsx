@@ -142,6 +142,9 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
             <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
               {signal.timeframe}
             </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-500 border border-slate-700 uppercase tracking-widest">
+              {signal.source}
+            </span>
           </div>
           <div
             className={`flex items-center gap-2 font-bold text-lg uppercase ${directionColor}`}
