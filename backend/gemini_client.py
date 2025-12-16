@@ -66,8 +66,11 @@ def generate_pro(prompt: str) -> str:
             return prompt
 
     except Exception as e:
-        print(f"[Gemini] Error generating content: {e}")
         return prompt
+
+
+# Alias for compatibility with core/analysis_logic.py
+generate_pro_analysis = generate_pro
 
 def generate_chat(messages: list[dict]) -> str:
     """

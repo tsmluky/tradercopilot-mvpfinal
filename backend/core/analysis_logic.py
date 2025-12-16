@@ -9,7 +9,7 @@ from format_prompt_pro import format_pro_prompt_v2
 from strategies.registry import get_registry
 from rag_context import build_token_context
 from deepseek_client import generate_pro_analysis
-from narrative_engine import generate_dynamic_rationale
+# from narrative_engine import generate_dynamic_rationale
 from indicators.market import get_market_data # Re-export if needed or used directly
 
 from fastapi import HTTPException

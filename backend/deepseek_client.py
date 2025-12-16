@@ -144,6 +144,10 @@ def generate_pro(prompt: str) -> str:
     return content
 
 
+# Alias for compatibility with core/analysis_logic.py
+generate_pro_analysis = generate_pro
+
+
 def generate_chat(messages: list[dict]) -> str:
     """
     Envía un historial de mensajes de chat a DeepSeek y devuelve la respuesta.
