@@ -2,6 +2,7 @@ import sys
 import os
 import asyncio
 import csv
+from sqlalchemy import text  # Added for schema fix
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi.middleware.cors import CORSMiddleware
@@ -84,6 +85,19 @@ async def startup():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # 🔧 HOTFIX: Ensure rationale column is TEXT (unlimited) to prevent 500 errors
+        # This fixes 'value too long for type character varying(240)'
+        try:
+            # Check if Postgres by looking at driver/url
+            db_dsn = str(engine.url)
+            if "postgresql" in db_dsn:
+                print("🔧 [DB FIX] Attempting to expand 'rationale' column to TEXT...")
+                await conn.execute(text("ALTER TABLE signals ALTER COLUMN rationale TYPE TEXT;"))
+                print("✅ [DB FIX] Column 'rationale' updated to TEXT.")
+        except Exception as e:
+            # It might fail if table doesn't exist yet or other reasons, but safe to ignore
+            print(f"⚠️ [DB FIX] Schema update skipped: {e}")
     
     # Registrar estrategias built-in
     print("\n📦 Registering strategies...")
