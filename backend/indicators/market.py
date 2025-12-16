@@ -1,15 +1,14 @@
 import pandas as pd
 import ta
-# Importar desde el módulo hermano en el directorio raíz (backend/)
-# Asumimos que backend/ está en sys.path gracias a main.py
+# Importar desde el módulo core
 try:
-    from market_data_api import get_ohlcv_data
+    from core.market_data_api import get_ohlcv_data
 except ImportError:
     # Fallback para ejecución aislada o tests
     import sys
     import os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from market_data_api import get_ohlcv_data
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+    from core.market_data_api import get_ohlcv_data
 
 # Exchange ID for data source (used by evaluator)
 EXCHANGE_ID = "binance"
