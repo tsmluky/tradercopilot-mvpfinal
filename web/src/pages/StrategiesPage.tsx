@@ -84,7 +84,7 @@ export const StrategiesPage: React.FC = () => {
 
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {personas.filter(p => p.is_active).map((persona) => {
+                {personas.map((persona) => {
                     const theme = getColorClass(persona.color);
                     const activeClass = persona.is_active ? '' : 'opacity-60 grayscale-[0.5]';
 
