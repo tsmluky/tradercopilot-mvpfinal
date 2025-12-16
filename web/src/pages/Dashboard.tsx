@@ -59,25 +59,34 @@ export const Dashboard: React.FC = () => {
           (l) => new Date((l.evaluated_at as string) || 0) > oneDayAgo
         );
 
-        const wins24h = last24hLogs.filter(
-          (l) => String(l.result || '').toUpperCase().includes('WIN') || String(l.result || '').toUpperCase().includes('TP')
+
+        const strategiesLogs = allLogs.filter((l) => !String(l.source || '').includes('lite-rule'));
+
+        const wins24h = strategiesLogs.filter(
+          (l) =>
+            new Date((l.evaluated_at as string) || 0) > oneDayAgo &&
+            (String(l.result || '').toUpperCase().includes('WIN') ||
+              String(l.result || '').toUpperCase().includes('TP'))
         ).length;
-        const losses24h = last24hLogs.filter(
-          (l) => String(l.result || '').toUpperCase().includes('LOSS') || String(l.result || '').toUpperCase().includes('SL')
+        const losses24h = strategiesLogs.filter(
+          (l) =>
+            new Date((l.evaluated_at as string) || 0) > oneDayAgo &&
+            (String(l.result || '').toUpperCase().includes('LOSS') ||
+              String(l.result || '').toUpperCase().includes('SL'))
         ).length;
         const totalClosed24h = wins24h + losses24h;
 
         setWinRate(totalClosed24h > 0 ? Math.round((wins24h / totalClosed24h) * 100) : 0);
 
         setActiveSignals(
-          allLogs.filter(
+          strategiesLogs.filter(
             (l) =>
               String(l.result || '').toUpperCase() === 'OPEN' ||
               String(l.result || '').toUpperCase() === 'PENDING'
           ).length
         );
 
-        const last7dLogs = allLogs.filter(
+        const last7dLogs = strategiesLogs.filter(
           (l) => new Date((l.evaluated_at as string) || 0) > sevenDaysAgo
         );
         setEvaluatedCount(last7dLogs.length);
@@ -118,6 +127,10 @@ export const Dashboard: React.FC = () => {
         });
 
         setChartData(Object.values(dailyStats));
+
+        // Use filtered logs for the display list too
+        setLogs(strategiesLogs);
+
       } catch (e) {
         console.error('Dashboard data load failed', e);
       } finally {
