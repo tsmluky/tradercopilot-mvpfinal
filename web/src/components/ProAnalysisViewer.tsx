@@ -83,8 +83,8 @@ export const ProAnalysisViewer: React.FC<Props> = ({ raw, token }) => {
             <h3 className="text-sm font-bold text-slate-200 mb-2 flex items-center gap-2">
               <Globe size={16} className="text-indigo-400" /> Market Context
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed relative z-10">
-              {ctxt}
+            <p className="text-sm text-slate-400 leading-relaxed relative z-10 whitespace-pre-wrap">
+              {ctxt?.replace(/\\n/g, '\n')}
             </p>
           </div>
         )}
@@ -98,8 +98,8 @@ export const ProAnalysisViewer: React.FC<Props> = ({ raw, token }) => {
             <h3 className="text-sm font-bold text-slate-200 mb-2 flex items-center gap-2">
               <Activity size={16} className="text-emerald-400" /> Technical Analysis
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed relative z-10">
-              {ta}
+            <p className="text-sm text-slate-400 leading-relaxed relative z-10 whitespace-pre-wrap">
+              {ta?.replace(/\\n/g, '\n')}
             </p>
           </div>
         )}
@@ -110,8 +110,8 @@ export const ProAnalysisViewer: React.FC<Props> = ({ raw, token }) => {
             <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
               <Target size={16} className="text-indigo-400" /> Execution Plan
             </h3>
-            <p className="text-sm text-slate-300 leading-relaxed font-medium">
-              {plan}
+            <p className="text-sm text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">
+              {plan?.replace(/\\n/g, '\n')}
             </p>
             {/* Embedded Params */}
             {(entry || tp || sl) && (
@@ -141,8 +141,8 @@ export const ProAnalysisViewer: React.FC<Props> = ({ raw, token }) => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-amber-500 mb-1">Key Insight</h3>
-              <p className="text-sm text-amber-200/80 leading-relaxed italic">
-                "{insight}"
+              <p className="text-sm text-amber-200/80 leading-relaxed italic whitespace-pre-wrap">
+                "{insight?.replace(/\\n/g, '\n')}"
               </p>
             </div>
           </div>

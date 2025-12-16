@@ -1,6 +1,4 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Clock, Activity, Crosshair, Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { formatPrice } from '../../utils/format';
 
 interface ScannerSignalCardProps {
     signal: any;
@@ -8,6 +6,7 @@ interface ScannerSignalCardProps {
 }
 
 export const ScannerSignalCard: React.FC<ScannerSignalCardProps> = ({ signal, onAnalyze }) => {
+    // ... existing logic ...
     const isLong = signal.direction.toUpperCase() === 'LONG';
     const isWin = signal.status?.includes('WIN') || signal.status?.includes('TP');
     const isLoss = signal.status?.includes('LOSS') || signal.status?.includes('SL');
@@ -85,19 +84,19 @@ export const ScannerSignalCard: React.FC<ScannerSignalCardProps> = ({ signal, on
                     <div className="text-center border-r border-slate-800/50 px-2">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Entry</div>
                         <div className="font-mono text-white font-bold text-sm">
-                            {signal.entry}
+                            {formatPrice(signal.entry)}
                         </div>
                     </div>
                     <div className="text-center border-r border-slate-800/50 px-2">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">TP</div>
                         <div className="font-mono text-emerald-400 font-bold text-sm">
-                            {signal.tp || '-'}
+                            {formatPrice(signal.tp)}
                         </div>
                     </div>
                     <div className="text-center px-2">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">SL</div>
                         <div className="font-mono text-rose-400 font-bold text-sm">
-                            {signal.sl || '-'}
+                            {formatPrice(signal.sl)}
                         </div>
                     </div>
                 </div>
