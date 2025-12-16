@@ -196,9 +196,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
         </div>
       </div>
 
-      import {formatPrice} from "../utils/format";
 
-      // ...
 
       {/* Numbers Grid - Clean & Integrated */}
       <div className="grid grid-cols-3 gap-px bg-slate-800/50 rounded-lg overflow-hidden border border-slate-800 mb-6">

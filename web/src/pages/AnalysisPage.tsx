@@ -205,9 +205,7 @@ export const AnalysisPage: React.FC = () => {
               </div>
             </div>
 
-            import {formatPrice} from "../utils/format";
 
-            // ... inside component ...
 
             {/* Execution Block */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
