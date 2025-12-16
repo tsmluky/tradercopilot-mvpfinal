@@ -60,7 +60,10 @@ export const Dashboard: React.FC = () => {
         );
 
 
-        const strategiesLogs = allLogs.filter((l) => !String(l.source || '').includes('lite-rule'));
+        const strategiesLogs = allLogs.filter((l) => {
+          const s = String(l.source || '');
+          return !s.includes('lite-rule') && !s.includes('Pro_v1_local');
+        });
 
         const wins24h = strategiesLogs.filter(
           (l) =>
