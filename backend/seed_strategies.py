@@ -2,7 +2,7 @@ from database import SessionLocal
 from models_db import StrategyConfig
 from strategies.registry import get_registry
 from strategies.ma_cross import MACrossStrategy
-from strategies.donchian import DonchianStrategy
+from strategies.DonchianBreakoutV2 import DonchianBreakoutV2 as DonchianStrategy
 from strategies.bb_mean_reversion import BBMeanReversionStrategy
 from strategies.DonchianBreakoutV2 import DonchianBreakoutV2
 from strategies.rsi_divergence import RSIDivergenceStrategy

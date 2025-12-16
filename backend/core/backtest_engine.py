@@ -11,7 +11,7 @@ from datetime import datetime
 # Add root to path to find 'strategies'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from market_data_api import get_ohlcv_data
+from core.market_data_api import get_ohlcv_data
 
 class BacktestEngine:
     """

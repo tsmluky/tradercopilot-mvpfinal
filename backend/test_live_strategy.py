@@ -6,7 +6,7 @@ from datetime import datetime
 sys.path.insert(0, os.getcwd())
 
 from strategies.ma_cross import MACrossStrategy
-from strategies.donchian import DonchianStrategy
+from strategies.DonchianBreakoutV2 import DonchianBreakoutV2 as DonchianStrategy
 from core.schemas import Signal
 
 def test_strategy(strategy_class, name):

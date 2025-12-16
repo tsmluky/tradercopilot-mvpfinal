@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from core.ai_service import get_ai_service
 from rag_context import build_token_context
-from market_data_api import get_ohlcv_data
+from core.market_data_api import get_ohlcv_data
 
 router = APIRouter(prefix="/advisor", tags=["advisor"])
 
