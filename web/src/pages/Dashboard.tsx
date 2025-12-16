@@ -13,11 +13,16 @@ import { LogRow, AnalysisMode } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { TacticalAnalysisDrawer } from '../components/scanner/TacticalAnalysisDrawer';
 
 export const Dashboard: React.FC = () => {
   const { userProfile, completeOnboarding } = useAuth();
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // [NEW] Drawer State
+  const [selectedSignal, setSelectedSignal] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [winRate, setWinRate] = useState(0);
   const [activeSignals, setActiveSignals] = useState(0);
@@ -122,6 +127,23 @@ export const Dashboard: React.FC = () => {
 
     fetchData();
   }, []);
+
+  const handleSignalClick = (log: LogRow) => {
+    // Map LogRow to Signal format expected by Drawer
+    const signal = {
+      token: log.token?.toUpperCase(),
+      timestamp: log.evaluated_at || log.timestamp || new Date().toISOString(),
+      direction: log.direction || (String(log.result).includes('SHORT') ? 'SHORT' : 'LONG'),
+      entry: log.entry || 0,
+      tp: log.tp || 0,
+      sl: log.sl || 0,
+      timeframe: log.timeframe || '4h',
+      rationale: log.rationale || log.reason || "Signal from Live Feed",
+      status: log.result
+    };
+    setSelectedSignal(signal);
+    setIsDrawerOpen(true);
+  };
 
   const KPICard = ({ title, value, sub, icon, color }: any) => (
     <div className="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg relative overflow-hidden">
@@ -298,15 +320,16 @@ export const Dashboard: React.FC = () => {
                   result.includes('WIN') || result.includes('TP')
                     ? 'bg-emerald-500/10 text-emerald-400'
                     : result.includes('LOSS') || result.includes('SL')
-                    ? 'bg-rose-500/10 text-rose-400'
-                    : 'bg-blue-500/10 text-blue-400';
+                      ? 'bg-rose-500/10 text-rose-400'
+                      : 'bg-blue-500/10 text-blue-400';
 
                 const move = log.move_pct || log.timeframe;
 
                 return (
                   <div
                     key={idx}
-                    className="border-b border-slate-800 pb-3 last:border-0 last:pb-0"
+                    onClick={() => handleSignalClick(log)}
+                    className="border-b border-slate-800 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/50 transition-colors rounded p-1"
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-bold text-white text-sm">{token}</span>
@@ -331,6 +354,13 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* [NEW] Drawer Integration */}
+      <TacticalAnalysisDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        signal={selectedSignal}
+      />
     </div>
   );
 };
