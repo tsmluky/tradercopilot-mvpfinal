@@ -21,3 +21,4 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
 bcrypt==3.2.2
 ft-pandas-ta==0.3.16
+redis>=4.0.0

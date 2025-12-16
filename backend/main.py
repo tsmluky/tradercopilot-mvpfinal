@@ -122,6 +122,9 @@ from routers.notifications import router as notifications_router
 from routers.advisor import router as advisor_router
 from routers.market import router as market_router
 from routers.system import router as system_router
+from routers.analysis import router as analysis_router
+from routers.backtest import router as backtest_router
+from routers.auth import router as auth_router
 
 app.include_router(strategies_router, prefix="/strategies", tags=["Strategies"])
 app.include_router(logs_router, prefix="/logs", tags=["Logs"])
