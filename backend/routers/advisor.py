@@ -6,7 +6,7 @@ from core.ai_service import get_ai_service
 from rag_context import build_token_context
 from core.market_data_api import get_ohlcv_data
 
-router = APIRouter(prefix="/advisor", tags=["advisor"])
+router = APIRouter(tags=["advisor"])
 
 class ChatMessage(BaseModel):
     role: str

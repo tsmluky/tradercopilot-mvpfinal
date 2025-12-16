@@ -7,7 +7,7 @@ from models_db import Signal, SignalEvaluation
 from pydantic import BaseModel
 from datetime import datetime
 
-router = APIRouter(prefix="/logs", tags=["logs"])
+router = APIRouter(tags=["logs"])
 
 class LogEntry(BaseModel):
     id: int

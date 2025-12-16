@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from database import SessionLocal
 from models_db import PushSubscription
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(tags=["notifications"])
 
 def get_db():
     db = SessionLocal()

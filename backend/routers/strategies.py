@@ -30,7 +30,7 @@ def get_db():
     finally:
         db.close()
 
-router = APIRouter(prefix="/strategies", tags=["strategies"])
+router = APIRouter(tags=["strategies"])
 
 @router.get("/marketplace", response_model=List[Dict[str, Any]])
 async def get_marketplace():
