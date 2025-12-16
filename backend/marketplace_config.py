@@ -31,21 +31,7 @@ SYSTEM_PERSONAS = [
         "is_active": True,
         "is_custom": False
     },
-    {
-        "id": "dot_scalper_ai",
-        "name": "The Scalper AI",
-        "symbol": "DOT",
-        "timeframe": "15m",
-        "strategy_id": "rsi_divergence_v1",
-        "description": "Hyper-active neural scalper. Scrapes small profits from market noise. Keeps the system alive.",
-        "risk_level": "Medium",
-        "expected_roi": "77%",
-        "win_rate": "35%",
-        "frequency": "High (16 trades/day)",
-        "color": "cyan",
-        "is_active": False,
-        "is_custom": False
-    },
+
     {
         "id": "titan_btc",
         "name": "Titan Fortress",
