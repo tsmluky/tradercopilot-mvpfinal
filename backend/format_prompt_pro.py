@@ -64,7 +64,7 @@ def _format_market_block(market: Dict) -> str:
     return "\\n".join(block)
 
 
-def build_prompt(
+def format_pro_prompt_v2(
     token: str,
     timeframe: str,
     user_message: str,
