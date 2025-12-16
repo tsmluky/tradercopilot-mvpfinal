@@ -199,6 +199,29 @@ export async function fetchLogs(mode: string, token: string): Promise<LogRow[]> 
 }
 
 // =========================
+// Market Data (Charts)
+// =========================
+export async function getOHLCV(token: string, timeframe: string): Promise<any[]> {
+  try {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/market/ohlcv/${token}?timeframe=${timeframe}&limit=100`, { method: "GET" });
+    if (!res.ok) throw new Error("Failed to fetch OHLCV");
+    const data = await res.json();
+    // Normalize for lightweight-charts: time (seconds), open, high, low, close
+    return data.map((d: any) => ({
+      time: d.timestamp / 1000, // MS to Seconds
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+      value: d.close, // fallback
+    }));
+  } catch (err) {
+    console.warn("getOHLCV failed", err);
+    return [];
+  }
+}
+
+// =========================
 // Trigger Evaluation (On-Demand)
 // =========================
 
@@ -567,5 +590,8 @@ export const api = {
   fetchPersonaHistory,
   createPersona,
   deletePersona,
-  togglePersona
+  createPersona,
+  deletePersona,
+  togglePersona,
+  getOHLCV
 };

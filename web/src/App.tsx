@@ -8,7 +8,14 @@ import { StrategiesPage } from './pages/StrategiesPage';
 import { StrategyDetailsPage } from './pages/StrategyDetailsPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { LogsPage } from './pages/LogsPage';
+import { AdvisorPage } from './pages/AdvisorPage'; // Import new page
 import { MembershipPage } from './pages/MembershipPage';
+
+// ... (in Routes)
+
+          <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
+          <Route path="/advisor" element={<ProtectedRoute><AdvisorPage /></ProtectedRoute>} /> {/* New Route */ }
+<Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';

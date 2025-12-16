@@ -8,6 +8,7 @@ import ccxt
 import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from core.cache import cache  # Importar Cache
 
 def get_ohlcv_data(
     symbol: str,
@@ -15,9 +16,18 @@ def get_ohlcv_data(
     limit: int = 100
 ) -> List[Dict[str, Any]]:
     """
-    Obtiene datos OHLCV con Fallback Chain: Binance -> KuCoin -> Bybit -> Mock.
-    Garantiza retorno de datos para evitar timeouts en frontend.
+    Obtiene datos OHLCV con Caching + Fallback.
+    TTL: 60s para reducir latencia.
     """
+    # 1. Intentar Cache
+    cache_key = f"ohlcv:{symbol.upper()}:{timeframe}:{limit}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        # print(f"[MARKET] ⚡ Cache Hit for {cache_key}")
+        return cached_data
+
+    # ... execution continues ...
+
     base_symbol = symbol.upper().replace("USDT", "").replace("-", "")
     ccxt_symbol = f"{base_symbol}/USDT"
     
@@ -57,6 +67,10 @@ def get_ohlcv_data(
                         'close': float(candle[4]),
                         'volume': float(candle[5]),
                     })
+                
+                # Cache Valid Data: 20s TTL (Balance between load and freshness)
+                cache.set(cache_key, ohlcv, ttl=20)
+                return ohlcv
                 return ohlcv
         except Exception as e:
             print(f"[MARKET DATA] ⚠️ Failed fetch from {ex_id}: {e}")
@@ -64,56 +78,24 @@ def get_ohlcv_data(
 
     # 2. Last Resort: Mock Data
     print(f"[MARKET DATA] 🚨 All exchanges failed. Returning MOCK data to prevent crash.")
-    return generate_mock_ohlcv(base_symbol, limit)
+    mock_data = generate_mock_ohlcv(base_symbol, limit)
+    return mock_data # Don't cache mock data, or cache briefly? No cache for mock.
 
-def generate_mock_ohlcv(symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
-    """
-    Genera datos OHLCV simulados para desarrollo/fallback.
-    """
-    import random
-    
-    print(f"[MARKET DATA] 🎲 Generating MOCK data for {symbol}...")
-    
-    base_prices = {
-        'btc': 95000,
-        'eth': 3600,
-        'sol': 200,
-    }
-    
-    base_price = base_prices.get(symbol.lower(), 1000)
-    current_price = base_price
-    
-    ohlcv = []
-    now = datetime.now()
-    
-    for i in range(limit):
-        change_pct = random.uniform(-0.01, 0.01)
-        open_price = current_price
-        high_price = open_price * (1 + abs(change_pct) * random.uniform(0.5, 1.5))
-        low_price = open_price * (1 - abs(change_pct) * random.uniform(0.5, 1.5))
-        close_price = open_price * (1 + change_pct)
-        
-        current_price = close_price
-        
-        timestamp = now - timedelta(minutes=(limit - i) * 60)
-        
-        ohlcv.append({
-            'timestamp': int(timestamp.timestamp() * 1000),
-            'time': timestamp.strftime('%H:%M'),
-            'open': round(open_price, 2),
-            'high': round(high_price, 2),
-            'low': round(low_price, 2),
-            'close': round(close_price, 2),
-            'volume': random.randint(1000, 10000),
-        })
-    
-    return ohlcv
+
+# ... (generate_mock_ohlcv stays same) ...
 
 
 def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
     """
     Obtiene precio y cambio 24h para múltiples símbolos.
     """
+    # 1. Cache Check
+    s_key = "-".join(sorted(symbols))
+    cache_key = f"market:summary:{hash(s_key)}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
         exchange = ccxt.binance()
         # Normalizar a BTC/USDT, ETH/USDT...
@@ -145,6 +127,11 @@ def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
                     "price": t['last'],
                     "change_24h": change or 0.0
                 })
+        
+        # 2. Set Cache: 5s TTL for Summary (Price sensitivity)
+        if summary:
+            cache.set(cache_key, summary, ttl=5)
+            
         return summary
     except Exception as e:
         print(f"[MARKET DATA] Error getting summary: {e}")
