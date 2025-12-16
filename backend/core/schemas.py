@@ -103,8 +103,7 @@ class Signal(BaseModel):
 
     rationale: Optional[str] = Field(
         None,
-        description="Justificación breve de la señal (≤240 caracteres)",
-        max_length=240,
+        description="Justificación breve de la señal",
     )
 
     source: str = Field(
@@ -163,6 +162,6 @@ class SignalCreate(BaseModel):
     tp: Optional[float] = Field(None, description="Take profit", gt=0)
     sl: Optional[float] = Field(None, description="Stop loss", gt=0)
     confidence: Optional[float] = Field(None, description="Confianza 0-1", ge=0.0, le=1.0)
-    rationale: Optional[str] = Field(None, description="Justificación breve", max_length=240)
+    rationale: Optional[str] = Field(None, description="Justificación breve")
     source: str = Field(..., description="Origen de la señal", max_length=50)
     extra: Optional[Dict[str, Any]] = Field(None, description="Metadatos adicionales")
