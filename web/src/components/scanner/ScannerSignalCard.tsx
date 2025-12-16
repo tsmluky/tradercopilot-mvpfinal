@@ -1,3 +1,6 @@
+import React from 'react';
+import { TrendingUp, TrendingDown, Clock, Activity, Crosshair, Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { formatPrice } from '../../utils/format';
 
 interface ScannerSignalCardProps {
