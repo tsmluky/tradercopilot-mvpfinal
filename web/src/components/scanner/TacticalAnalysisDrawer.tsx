@@ -1,5 +1,6 @@
 import { X, Bot, Shield, Target } from 'lucide-react';
 import { AdvisorChat } from '../AdvisorChat';
+import { formatPrice, formatRelativeTime } from '../../utils/format';
 
 interface TacticalAnalysisDrawerProps {
     isOpen: boolean;
@@ -52,14 +53,36 @@ export const TacticalAnalysisDrawer: React.FC<TacticalAnalysisDrawerProps> = ({ 
                 </div>
 
                 {/* Signal Context Summary */}
-                <div className="p-4 bg-slate-800/30 border-b border-slate-800 flex gap-4 text-xs">
-                    <div className="flex items-center gap-2 text-slate-300">
-                        <Target size={14} className="text-indigo-400" />
-                        Entry: <span className="font-mono font-bold text-white">{signal.entry}</span>
+                <div className="p-4 bg-slate-800/30 border-b border-slate-800 flex flex-col gap-3 text-xs">
+                    {/* Key Levels Row */}
+                    <div className="flex items-center justify-between text-slate-300 bg-slate-900/40 p-2 rounded-lg border border-slate-800/50">
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase text-slate-500 font-bold">Entry</span>
+                            <span className="font-mono font-bold text-white">{formatPrice(signal.entry)}</span>
+                        </div>
+                        <div className="w-px h-6 bg-slate-800"></div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase text-emerald-500 font-bold">TP</span>
+                            <span className="font-mono font-bold text-emerald-400">{formatPrice(signal.tp)}</span>
+                        </div>
+                        <div className="w-px h-6 bg-slate-800"></div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] uppercase text-rose-500 font-bold">SL</span>
+                            <span className="font-mono font-bold text-rose-400">{formatPrice(signal.sl)}</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-300">
-                        <Shield size={14} className="text-indigo-400" />
-                        Risk: <span className="font-mono font-bold text-white">High</span>
+
+                    {/* Rationale Snippet */}
+                    {signal.rationale && (
+                        <div className="text-slate-400 italic leading-relaxed px-1 text-[11px] border-l-2 border-indigo-500/30 pl-2">
+                            "{signal.rationale}"
+                        </div>
+                    )}
+
+                    {/* Meta Info */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">
+                        <span>TF: {signal.timeframe}</span>
+                        <span>{formatRelativeTime(signal.timestamp)}</span>
                     </div>
                 </div>
 

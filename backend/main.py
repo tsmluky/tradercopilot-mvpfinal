@@ -114,6 +114,25 @@ async def startup():
     registry.register(BBMeanReversionStrategy)
     print("✅ Strategies registered\n")
 
+    # [NEW] Background Task: Automatic Signal Evaluation (every 5 mins)
+    async def run_evaluator_loop():
+        print("[BACKGROUND] 🚀 Starting Automatic Signal Evaluator...")
+        while True:
+            try:
+                await asyncio.sleep(300) # Wait 5 mins first
+                print("[BACKGROUND] 🔍 Running scheduled signal evaluation...")
+                from evaluated_logger import evaluate_all_tokens
+                # Run in threadpool to avoid blocking event loop
+                from fastapi.concurrency import run_in_threadpool
+                count, new_evals = await run_in_threadpool(evaluate_all_tokens)
+                if new_evals > 0:
+                    print(f"[BACKGROUND] ✅ Evaluated {new_evals} signals.")
+            except Exception as e:
+                print(f"[BACKGROUND] ⚠️ Evaluator loop error: {e}")
+                await asyncio.sleep(60) # Retry sooner on error
+
+    asyncio.create_task(run_evaluator_loop())
+
 
 # ==== Routers ====
 from routers.strategies import router as strategies_router

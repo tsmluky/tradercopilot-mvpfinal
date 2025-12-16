@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchLogs, getSignalEvaluation, triggerBatchEvaluation } from "../services/api";
 import type { LogRow, SignalEvaluation } from "../types";
+import { formatPrice, formatRelativeTime } from "../utils/format";
 
 type Mode = "LITE" | "PRO" | "ADVISOR";
 
@@ -63,13 +64,6 @@ export const LogsPage: React.FC = () => {
     );
   }
 
-  function formatNumber(v: string | number | undefined, decimals: number = 2): string {
-    if (v === undefined || v === null || v === "") return "-";
-    const n = typeof v === "number" ? v : Number(v);
-    if (Number.isNaN(n)) return String(v);
-    return n.toString();
-  }
-
   function evaluationBadge(evalObj?: SignalEvaluation | null) {
     if (!evalObj) return <span className="text-xs text-slate-500">Pending</span>;
 
@@ -107,7 +101,7 @@ export const LogsPage: React.FC = () => {
 
       // Trigger Evaluation
       await triggerBatchEvaluation();
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 800));
 
       const evalRes = await getSignalEvaluation(token, ts);
 
@@ -169,8 +163,6 @@ export const LogsPage: React.FC = () => {
       {/* Controls */}
       <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-3">
-          {/* Mode select removed (Default: LITE) */}
-
           {/* Token select */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 uppercase tracking-wide">Token</span>
@@ -239,7 +231,7 @@ export const LogsPage: React.FC = () => {
                   const { row, evaluation, evaluationLoading, evaluationError } = item;
                   const rawTs = getTimestamp(row);
                   // Fix Timezone: Ensure timestamp is treated as UTC if missing 'Z'
-                  const ts = rawTs && !rawTs.endsWith('Z') ? `${rawTs}Z` : rawTs;
+                  const ts = rawTs && !rawTs.endsWith("Z") ? `${rawTs}Z` : rawTs;
                   const tf =
                     getField(row, "timeframe") ||
                     getField(row, "tf") ||
@@ -259,17 +251,24 @@ export const LogsPage: React.FC = () => {
                   return (
                     <tr key={index} className="border-b border-slate-800/60 last:border-none">
                       <td className="py-2 pr-3 align-top text-xs text-slate-300">
-                        {ts ? new Date(ts).toLocaleString() : "-"}
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-200">
+                            {formatRelativeTime(ts)}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {ts ? new Date(ts).toLocaleTimeString() : "-"}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-2 pr-3 align-top text-xs text-slate-400">{mode}</td>
                       <td className="py-2 pr-3 align-top text-xs">
                         {dir ? (
                           <span
                             className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${dir.toLowerCase() === "long"
-                              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
-                              : dir.toLowerCase() === "short"
-                                ? "bg-rose-500/10 text-rose-300 border-rose-500/40"
-                                : "bg-slate-800 text-slate-100 border-slate-700"
+                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/40"
+                                : dir.toLowerCase() === "short"
+                                  ? "bg-rose-500/10 text-rose-300 border-rose-500/40"
+                                  : "bg-slate-800 text-slate-100 border-slate-700"
                               }`}
                           >
                             {dir.toUpperCase()}
@@ -282,13 +281,13 @@ export const LogsPage: React.FC = () => {
                         {tf || "-"}
                       </td>
                       <td className="py-2 pr-3 align-top text-xs text-slate-100">
-                        {formatNumber(entry)}
+                        {formatPrice(entry)}
                       </td>
                       <td className="py-2 pr-3 align-top text-xs text-emerald-300">
-                        {formatNumber(tp)}
+                        {formatPrice(tp)}
                       </td>
                       <td className="py-2 pr-3 align-top text-xs text-rose-300">
-                        {formatNumber(sl)}
+                        {formatPrice(sl)}
                       </td>
 
                       {mode === "LITE" && (
