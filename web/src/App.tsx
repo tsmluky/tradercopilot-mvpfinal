@@ -8,14 +8,8 @@ import { StrategiesPage } from './pages/StrategiesPage';
 import { StrategyDetailsPage } from './pages/StrategyDetailsPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { LogsPage } from './pages/LogsPage';
-import { AdvisorPage } from './pages/AdvisorPage'; // Import new page
+import { AdvisorPage } from './pages/AdvisorPage';
 import { MembershipPage } from './pages/MembershipPage';
-
-// ... (in Routes)
-
-          <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
-          <Route path="/advisor" element={<ProtectedRoute><AdvisorPage /></ProtectedRoute>} /> {/* New Route */ }
-<Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -65,6 +59,7 @@ const App: React.FC = () => {
           {/* Mapping old signals path effectively to scanner in case of bookmarks, or just replacing it entirely */}
           <Route path="/signals" element={<Navigate to="/scanner" replace />} />
           <Route path="/analysis" element={<ProtectedRoute><AnalysisPage /></ProtectedRoute>} />
+          <Route path="/advisor" element={<ProtectedRoute><AdvisorPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
           <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
