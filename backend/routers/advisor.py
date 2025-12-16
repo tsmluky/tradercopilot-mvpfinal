@@ -89,3 +89,82 @@ def advisor_chat(req: ChatRequest):
     response_text = ai_service.chat(user_api_messages, system_instruction=system_instruction)
     
     return {"reply": response_text}
+
+# ==== Endpoint Analysis Advisor (Legacy V1 Local) ====
+from models import AdvisorReq
+from core.schemas import Signal
+from core.signal_logger import log_signal
+from datetime import datetime
+
+@router.post("/")
+def analyze_advisor(req: AdvisorReq):
+    """
+    Analiza una posición abierta y sugiere alternativas.
+    Versión local determinista (sin LLM).
+    """
+    token = req.token.upper()
+    
+    # Lógica simple de evaluación de riesgo
+    risk_per_share = abs(req.entry - req.sl)
+    reward_per_share = abs(req.tp - req.entry)
+    rr = reward_per_share / risk_per_share if risk_per_share > 0 else 0
+    
+    risk_score = 0.5
+    if rr < 1.0:
+        risk_score = 0.9
+    elif rr > 2.0:
+        risk_score = 0.3
+        
+    confidence = 0.6
+    
+    alternatives = []
+    if risk_score > 0.7:
+        alternatives.append({
+            "if": "price consolidates",
+            "action": "tighten SL",
+            "rr_target": 1.5
+        })
+    else:
+        alternatives.append({
+            "if": "volume spikes",
+            "action": "add to position",
+            "rr_target": 2.5
+        })
+
+    response = {
+        "token": token,
+        "direction": req.direction,
+        "entry": req.entry,
+        "size_quote": req.size_quote,
+        "tp": req.tp,
+        "sl": req.sl,
+        "alternatives": alternatives,
+        "risk_score": round(risk_score, 2),
+        "confidence": confidence
+    }
+    
+    # Crear instancia de Signal unificado para ADVISOR
+    unified_signal = Signal(
+        timestamp=datetime.utcnow(),
+        strategy_id="advisor_v1_local",
+        mode="ADVISOR",
+        token=token,
+        timeframe="N/A",  # ADVISOR no tiene timeframe específico
+        direction=req.direction,
+        entry=req.entry,
+        tp=req.tp,
+        sl=req.sl,
+        confidence=confidence,
+        rationale=f"Advisor position check. RR={rr:.2f}",
+        source="ADVISOR_V1_LOCAL",
+        extra={
+            "risk_score": risk_score,
+            "rr_ratio": round(rr, 2),
+            "size_quote": req.size_quote,
+            "alternatives": alternatives,
+        }
+    )
+    
+    log_signal(unified_signal)
+    
+    return response
