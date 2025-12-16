@@ -288,4 +288,6 @@ SL: {lite.sl}
 #ANALYSIS_END
 """
 
-    return generate_pro(prompt)
+    # 3. Offload blocking LLM call to threadpool
+    from fastapi.concurrency import run_in_threadpool
+    return await run_in_threadpool(generate_pro, prompt)
