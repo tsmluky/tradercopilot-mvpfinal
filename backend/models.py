@@ -52,7 +52,7 @@ class LiteSignal(BaseModel):
     tp: float = Field(..., description="Take profit sugerido")
     sl: float = Field(..., description="Stop loss sugerido")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confianza 0..1 de la señal")
-    rationale: str = Field(..., max_length=1000, description="Racional breve de la señal (≤1000 caracteres)")
+    rationale: str = Field(..., description="Racional breve de la señal")
     # 🔧 Cambio clave: ahora tiene valor por defecto → si el backend no lo envía, no peta
     source: str = Field(
         default="lite-rule@v1",
