@@ -110,10 +110,11 @@ class GeminiProvider(AIProvider):
             return response.text
             
         except Exception as e:
-            error_msg = str(e)
-            # Detectar errores de cuota o rate limit
-            is_quota_error = "429" in error_msg or "403" in error_msg or "quota" in error_msg.lower() or "resource" in error_msg.lower()
+            error_msg = str(e).lower()
+            # Detectar errores de cuota o rate limit o Server Error general (5xx)
+            is_quota_error = "429" in error_msg or "403" in error_msg or "quota" in error_msg or "rate limit" in error_msg or "exhausted" in error_msg
             
+            # [AGGRESSIVE FALLBACK] Try fallback for ANY generation error if key is present
             if is_quota_error:
                 print(f"[AI] ⚠️ Gemini Rate Limit/Quota Hit. Falling back to DeepSeek... (Error: {error_msg[:100]})")
                 try:

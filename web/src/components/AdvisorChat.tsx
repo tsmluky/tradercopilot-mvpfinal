@@ -214,26 +214,27 @@ export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentT
 
   // 2. Floating Mode Render (Original)
   return (
-    <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
-      {/* Chat Window */}
+    <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end pointer-events-none">
+      {/* Chat Window - Enable pointer events for children */}
       {isOpen && (
-        <div className="mb-4 w-80 md:w-96 h-96 bg-[#0B1121] border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+        <div className="mb-4 w-80 md:w-96 h-[450px] bg-[#0B1121] border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-300 pointer-events-auto">
           {/* Header */}
-          <div className="bg-gray-800/50 p-3 border-b border-gray-700 flex justify-between items-center backdrop-blur-sm">
+          <div className="bg-gray-800/80 p-3 border-b border-gray-700 flex justify-between items-center backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <span className="text-xl">🛡️</span>
               <h3 className="font-bold text-gray-100">PRO Analyst AI</h3>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+              className="text-gray-400 hover:text-white hover:bg-red-500/20 transition-colors p-1.5 rounded-lg flex items-center justify-center w-8 h-8"
+              title="Close Chat"
             >
               ✕
             </button>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-900/50">
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user';
               return (
@@ -275,9 +276,9 @@ export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentT
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-gray-800/50 border-t border-gray-700 backdrop-blur-sm">
+          <div className="p-3 bg-gray-800/80 border-t border-gray-700 backdrop-blur-sm">
             {isLocked ? (
-              <div className="text-center py-2">
+              <div className="text-center py-2 h-full flex flex-col justify-center">
                 <p className="text-sm text-slate-400 mb-2">Advisor Chat is available on Paid Plans.</p>
                 <Link to="/membership" className="inline-block px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg hover:scale-105 transition-transform">
                   Upgrade to Unlock
@@ -307,17 +308,16 @@ export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentT
         </div>
       )}
 
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`group flex items-center gap-2 px-4 py-3 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 ${isOpen
-          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25'
-          }`}
-      >
-        <span className="text-2xl group-hover:rotate-12 transition-transform">🛡️</span>
-        {!isOpen && <span className="font-bold">Advisor Chat</span>}
-      </button>
+      {/* Toggle Button - Only visible when closed */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className={`pointer-events-auto group flex items-center gap-2 px-4 py-3 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25`}
+        >
+          <span className="text-2xl group-hover:rotate-12 transition-transform">🛡️</span>
+          <span className="font-bold">Advisor Chat</span>
+        </button>
+      )}
     </div>
   );
 };
