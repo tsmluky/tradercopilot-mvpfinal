@@ -715,6 +715,30 @@ def trigger_evaluation():
 @app.post("/analyze/lite")
 def analyze_lite(req: LiteReq):
     """
+    Wrapper seguro para capturar errores 500 y mostrarlos en el frontend.
+    """
+    import traceback
+    try:
+        return _analyze_lite_unsafe(req)
+    except Exception as e:
+        print(f"CRITICAL ERROR IN ANALYZE_LITE: {e}")
+        traceback.print_exc()
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "token": req.token,
+            "timeframe": req.timeframe,
+            "direction": "neutral",
+            "entry": 0.0,
+            "tp": 0.0,
+            "sl": 0.0,
+            "confidence": 0.0,
+            "rationale": f"CRASH DEBUG: {str(e)}",
+            "source": "debug-handler",
+            "indicators": {}
+        }
+
+def _analyze_lite_unsafe(req: LiteReq):
+    """
     Genera una señal LITE para un token/timeframe, usando la lógica LITE v2 adaptada
     a contratos oficiales, enriquecida con:
 
