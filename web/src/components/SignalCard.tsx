@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SignalLite, SignalEvaluation } from '../types';
 import { api } from '../services/api';
+import { formatPrice } from '../utils/format';
 import {
   TrendingUp,
   TrendingDown,

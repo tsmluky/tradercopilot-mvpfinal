@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { analyzeLite, analyzePro } from "../services/api";
 import type { SignalLite, ProResponse } from "../types";
 import { ProAnalysisViewer } from "../components/ProAnalysisViewer";
+import { formatPrice } from "../utils/format";
 import { Copy, Check, Share2 } from "lucide-react";
 
 type Mode = "LITE" | "PRO";
