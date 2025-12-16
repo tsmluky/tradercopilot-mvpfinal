@@ -33,6 +33,7 @@ EVAL_HEADERS = [
     "result",
     "move_pct",
     "notes",
+    "source",
 ]
 
 
@@ -281,6 +282,7 @@ def _evaluate_signal_row(row: Dict[str, str]) -> Dict[str, str]:
         "result": result,
         "move_pct": f"{move_pct_pct:.3f}",
         "notes": notes,
+        "source": row.get("source", "UNKNOWN"),
     }
 
     return eval_row
