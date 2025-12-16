@@ -784,11 +784,11 @@ def analyze_lite(req: LiteReq):
 
     # Combine all
     full_rationale = " | ".join(context_parts)
+    # Combined rationale
     lite_signal.rationale = full_rationale
+    
+    # [REMOVED TRUNCATION] No limits.
 
-    # Reaplicar límite (aumentado a 500 para permitir más detalle)
-    if len(lite_signal.rationale) > 500:
-        lite_signal.rationale = lite_signal.rationale[:497] + "..."
 
     # 3.3) Adjuntar metadatos RAG a los indicadores (para UI / debugging)
     indicators["rag"] = {
