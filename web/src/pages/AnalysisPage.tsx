@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { analyzeLite, analyzePro, getOHLCV } from "../services/api";
 import type { SignalLite, ProResponse } from "../types";
 import { ProAnalysisViewer } from "../components/ProAnalysisViewer";
-import { Copy, Check, Share2, Sparkles, BarChart2 } from "lucide-react";
+import { Copy, Check, Share2, Sparkles, BarChart2, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ThinkingOverlay } from "../components/ThinkingOverlay";
 import { SignalChart } from "../components/SignalChart";
 import { formatPrice } from "../utils/format";
@@ -13,6 +14,7 @@ const TOKENS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT",
 const TIMEFRAMES = ["1h", "4h", "1d"] as const;
 
 export const AnalysisPage: React.FC = () => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("LITE");
   const [token, setToken] = useState<string>("ETH");
   const [timeframe, setTimeframe] = useState<string>("4h");
@@ -215,16 +217,6 @@ export const AnalysisPage: React.FC = () => {
               Analysis Result
               {isStreaming && <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
             </h2>
-            import {Copy, Check, Share2, Sparkles, BarChart2, MessageCircle} from "lucide-react";
-            import {useNavigate} from "react-router-dom"; // Import hook
-
-// ...
-
-export const AnalysisPage: React.FC = () => {
-  const navigate = useNavigate(); // Hook usage
-
-            // ... (inside Analysis Result header) ...
-
             {mode === "LITE" && liteResult && (
               <div className="flex gap-2">
                 <button
