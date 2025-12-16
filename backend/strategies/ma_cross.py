@@ -6,7 +6,7 @@ import numpy as np
 
 from .base import Strategy, StrategyMetadata
 from core.schemas import Signal
-from market_data_api import get_ohlcv_data
+from core.market_data_api import get_ohlcv_data
 
 class MACrossStrategy(Strategy):
     """
