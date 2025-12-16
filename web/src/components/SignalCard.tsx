@@ -192,23 +192,27 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
         </div>
       </div>
 
+      import {formatPrice} from "../utils/format";
+
+      // ...
+
       {/* Numbers Grid - Clean & Integrated */}
       <div className="grid grid-cols-3 gap-px bg-slate-800/50 rounded-lg overflow-hidden border border-slate-800 mb-6">
         <div className="bg-slate-900/40 p-4 flex flex-col items-center justify-center hover:bg-slate-800/40 transition-colors group">
           <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 group-hover:text-slate-400">Entry</div>
-          <div className="font-mono text-lg font-bold text-white tracking-tight">{signal.entry}</div>
+          <div className="font-mono text-lg font-bold text-white tracking-tight">{formatPrice(signal.entry)}</div>
         </div>
 
         <div className="bg-slate-900/40 p-4 flex flex-col items-center justify-center hover:bg-emerald-900/10 transition-colors group relative">
           <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="text-[10px] uppercase tracking-wider text-emerald-500/70 font-bold mb-1 group-hover:text-emerald-400">Target</div>
-          <div className="font-mono text-lg font-bold text-emerald-400 tracking-tight">{signal.tp}</div>
+          <div className="font-mono text-lg font-bold text-emerald-400 tracking-tight">{formatPrice(signal.tp)}</div>
         </div>
 
         <div className="bg-slate-900/40 p-4 flex flex-col items-center justify-center hover:bg-rose-900/10 transition-colors group relative">
           <div className="absolute inset-0 bg-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="text-[10px] uppercase tracking-wider text-rose-500/70 font-bold mb-1 group-hover:text-rose-400">Stop</div>
-          <div className="font-mono text-lg font-bold text-rose-400 tracking-tight">{signal.sl}</div>
+          <div className="font-mono text-lg font-bold text-rose-400 tracking-tight">{formatPrice(signal.sl)}</div>
         </div>
       </div>
 

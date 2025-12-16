@@ -204,13 +204,17 @@ export const AnalysisPage: React.FC = () => {
               </div>
             </div>
 
+            import {formatPrice} from "../utils/format";
+
+            // ... inside component ...
+
             {/* Execution Block */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Entry */}
               <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-800/50 flex flex-col items-center justify-center text-center group hover:border-indigo-500/30 transition-colors">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Entry Zone</span>
                 <span className="text-2xl font-mono text-slate-100 font-bold group-hover:scale-105 transition-transform">
-                  {typeof liteResult.entry === 'number' ? liteResult.entry.toFixed(2) : liteResult.entry}
+                  {formatPrice(liteResult.entry)}
                 </span>
               </div>
 
@@ -218,7 +222,7 @@ export const AnalysisPage: React.FC = () => {
               <div className="p-4 bg-emerald-950/20 rounded-xl border border-emerald-900/40 flex flex-col items-center justify-center text-center group hover:border-emerald-500/30 transition-colors">
                 <span className="text-xs font-bold text-emerald-600/80 uppercase tracking-wider mb-2">Take Profit</span>
                 <span className="text-2xl font-mono text-emerald-400 font-bold group-hover:scale-105 transition-transform">
-                  {typeof liteResult.tp === 'number' ? liteResult.tp.toFixed(2) : liteResult.tp}
+                  {formatPrice(liteResult.tp)}
                 </span>
               </div>
 
@@ -226,7 +230,7 @@ export const AnalysisPage: React.FC = () => {
               <div className="p-4 bg-rose-950/20 rounded-xl border border-rose-900/40 flex flex-col items-center justify-center text-center group hover:border-rose-500/30 transition-colors">
                 <span className="text-xs font-bold text-rose-600/80 uppercase tracking-wider mb-2">Stop Loss</span>
                 <span className="text-2xl font-mono text-rose-400 font-bold group-hover:scale-105 transition-transform">
-                  {typeof liteResult.sl === 'number' ? liteResult.sl.toFixed(2) : liteResult.sl}
+                  {formatPrice(liteResult.sl)}
                 </span>
               </div>
             </div>

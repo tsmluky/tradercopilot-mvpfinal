@@ -333,9 +333,9 @@ def _build_lite_from_market(token: str, timeframe: str, market: Dict[str, Any]) 
         token=token.upper(),      # ETH/BTC/SOL/XAU
         timeframe=timeframe,
         direction=direction,      # type: ignore[arg-type]
-        entry=round(price, 2),
-        tp=round(tp, 2),
-        sl=round(sl, 2),
+        entry=round(price, 6),    # Increased precision for low-cap tokens
+        tp=round(tp, 6),
+        sl=round(sl, 6),
         confidence=round(confidence, 2),
         rationale=rationale,
         source="lite-rule@v2",    # versión de la regla LITE
