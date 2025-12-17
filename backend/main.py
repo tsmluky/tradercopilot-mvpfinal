@@ -705,25 +705,81 @@ class AdvisorChatReq(BaseModel):
 def analyze_advisor_chat(req: AdvisorChatReq):
     """
     Endpoint para chat interactivo con el Advisor (DeepSeek/Gemini via Service).
+    Inyecta contexto de mercado en tiempo real y System Prompt.
     """
     from core.ai_service import get_ai_service
     
-    # Convertir modelos Pydantic a dicts para la función
+    # 1. Recuperar contexto de mercado en tiempo real si el token está definido
+    market_context_str = "No specific market context selected."
+    token_symbol = "Global Market"
+    
+    if req.context and req.context.get("token"):
+        try:
+            target_token = req.context.get("token")
+            target_tf = req.context.get("timeframe", "1h")
+            
+            # Fetch real-time data
+            _, market_data = get_market_data(target_token, target_tf, limit=50)
+            
+            if market_data:
+                price = market_data.get('price', 'N/A')
+                rsi = market_data.get('rsi', 'N/A')
+                adx = market_data.get('adx', 'N/A')
+                change_24h = market_data.get('change_24h', 'N/A')
+                
+                token_symbol = target_token.upper()
+                market_context_str = (
+                    f"TOKEN: {token_symbol} | TIMEFRAME: {target_tf}\n"
+                    f"PRICE: ${price} | 24h CHANGE: {change_24h}%\n"
+                    f"RSI: {rsi} | ADX: {adx}\n"
+                    f"(Note: This is real-time data fetched from the exchange just now.)"
+                )
+        except Exception as e:
+            print(f"[ADVISOR] ⚠️ Failed to fetch context for {req.context.get('token')}: {e}")
+            market_context_str += f" (Data fetch error: {str(e)})"
+
+    # 2. Definir System Prompt con Personalidad + Tiempo + Datos
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    
+    SYSTEM_PROMPT = f"""
+You are TraderCopilot Advisor, an expert AI trading assistant powered by advanced algorithms.
+Your identity is "TraderCopilot", NOT a generic LLM. You are helpful, professional, and concise.
+
+CONTEXT:
+- Current Date/Time: {current_time}
+- Market Context: 
+{market_context_str}
+
+GUIDELINES:
+1. Use the provided Real-Time Market Context as absolute truth for price and indicators.
+2. If the user asks about the current price, use the value above.
+3. Keep answers concise and trading-focused.
+4. If asked "who are you", reply: "I am TraderCopilot Advisor, your real-time trading assistant."
+5. Do NOT mention "my knowledge cutoff" - you have the live data above.
+"""
+
+    # 3. Preparar historial
+    # Convertir modelos Pydantic a dicts
     messages = [{"role": m.role, "content": m.content} for m in req.history]
     
-    # Añadir contexto técnico al último mensaje si es relevante
-    if req.context:
-        ctx_str = (
-            f"\n[Context: Token={req.context.get('token')}, "
-            f"Direction={req.context.get('direction')}, "
+    # (Opcional) No necesitamos inyectar 'Context' en el último mensaje de usuario 
+    # porque ya lo pusimos en el System Prompt, que es más robusto.
+    # Pero si el usuario mandó contexto específico de una señal (entry, sl, tp), lo mantenemos.
+    if req.context and req.context.get("direction"): # Es una señal específica
+         ctx_str = (
+            f"\n[Specific Trade Setup: Direction={req.context.get('direction')}, "
             f"Entry={req.context.get('entry')}]"
         )
-        if messages and messages[-1]["role"] == "user":
+         if messages and messages[-1]["role"] == "user":
             messages[-1]["content"] += ctx_str
 
-    # Use Abstract Service
+    # 4. Llamar al servicio
     service = get_ai_service()
-    response_text = service.chat(messages)
+    
+    # Pasamos el SYSTEM_PROMPT. 
+    # Nota: El método 'chat' de la clase base AIProvider debe soportar 'system_instruction'.
+    # Verificamos si DeepSeekProvider lo soporta en ai_service.py.
+    response_text = service.chat(messages, system_instruction=SYSTEM_PROMPT)
     
     return {
         "role": "assistant",

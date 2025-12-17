@@ -593,5 +593,10 @@ export const api = {
   fetchAdminUsers,
   updateUserPlan,
   fetchAdminSignals,
-  toggleSignalVisibility
+  toggleSignalVisibility,
+  get: async (endpoint: string) => {
+    const res = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, { method: 'GET' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    return res.json();
+  }
 };

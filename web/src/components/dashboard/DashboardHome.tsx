@@ -24,22 +24,16 @@ export const DashboardHome: React.FC = () => {
     const fetchData = async () => {
         try {
             // 1. Fetch Stats
-            const statsRes = await fetch(`${API_BASE_URL}/stats/summary`);
-            if (statsRes.ok) {
-                setStats(await statsRes.json());
-            }
+            const statsData = await api.get('/stats/summary');
+            setStats(statsData);
 
             // 2. Fetch Active Strategies (Personas from Marketplace)
-            const stratRes = await fetch(`${API_BASE_URL}/strategies/marketplace`);
-            if (stratRes.ok) {
-                setStrategies(await stratRes.json());
-            }
+            const stratData = await api.get('/strategies/marketplace');
+            setStrategies(stratData);
 
             // 3. Fetch Recent Signals (Now "Market Radar")
-            const logsRes = await fetch(`${API_BASE_URL}/logs/recent?limit=20`);
-            if (logsRes.ok) {
-                setRecentSignals(await logsRes.json());
-            }
+            const logsData = await api.get('/logs/recent?limit=20');
+            setRecentSignals(logsData);
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
         } finally {
