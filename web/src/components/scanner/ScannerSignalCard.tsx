@@ -1,7 +1,8 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Clock, Activity, Crosshair, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, Clock, Activity, Crosshair, Lock, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../../utils/format';
+import { useAuth } from '../../context/AuthContext';
 
 interface ScannerSignalCardProps {
     signal: any;
@@ -9,7 +10,19 @@ interface ScannerSignalCardProps {
 }
 
 export const ScannerSignalCard: React.FC<ScannerSignalCardProps> = ({ signal, onAnalyze }) => {
-    // ... existing logic ...
+    const { userProfile, toggleFollow } = useAuth();
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Check if followed
+    const isFollowed = userProfile?.portfolio?.followed_signals?.some(
+        (s: any) => s.token === signal.token && s.timestamp === signal.timestamp
+    );
+
+    const handleToggleFollow = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        toggleFollow(signal);
+    };
+
     const isLong = signal.direction.toUpperCase() === 'LONG';
     const isWin = signal.status?.includes('WIN') || signal.status?.includes('TP');
     const isLoss = signal.status?.includes('LOSS') || signal.status?.includes('SL');
@@ -35,7 +48,11 @@ export const ScannerSignalCard: React.FC<ScannerSignalCardProps> = ({ signal, on
     };
 
     return (
-        <div className="group relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10">
+        <div
+            className="group relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
 
             {/* Locked Overlay */}
             {signal.locked && (
@@ -159,13 +176,24 @@ export const ScannerSignalCard: React.FC<ScannerSignalCardProps> = ({ signal, on
                     </div>
 
                     {/* Analyze Button */}
-                    <button
-                        onClick={() => onAnalyze(signal)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 hover:border-slate-600"
-                    >
-                        <Crosshair size={14} className="text-indigo-400" />
-                        Analyze Risk (PRO)
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleToggleFollow}
+                            className={`p-1.5 rounded-lg border transition-all ${isFollowed
+                                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400'
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}
+                            title={isFollowed ? "Untrack Signal" : "Track this Signal"}
+                        >
+                            {isFollowed ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                        </button>
+                        <button
+                            onClick={() => onAnalyze(signal)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 hover:border-slate-600"
+                        >
+                            <Crosshair size={14} className="text-indigo-400" />
+                            Analyze
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

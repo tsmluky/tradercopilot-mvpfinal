@@ -4,6 +4,7 @@ import { StrategyCard } from './StrategyCard';
 import { DashboardHistory } from './DashboardHistory';
 import { Activity, DollarSign, Zap, RefreshCw, Target, Bot } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../constants';
 
 import { MetricCard } from './MetricCard';
@@ -61,7 +62,31 @@ export const DashboardHome: React.FC = () => {
         );
     }
 
+    const { userProfile } = useAuth();
+
     const activeStrategies = strategies.filter(s => s.is_active);
+
+    // Filter Feed: Show only Active Agents OR Followed Signals
+    const filteredSignals = recentSignals.filter(sig => {
+        // 1. Check if followed
+        const isFollowed = userProfile?.portfolio?.followed_signals?.some(
+            (f: any) => f.token === sig.token && f.timestamp === sig.timestamp
+        );
+        if (isFollowed) return true;
+
+        // 2. Check if from Active Agent
+        // sig.source should match strategy.strategy_id (e.g. "trend_king_v1")
+        const isAgent = activeStrategies.some(strat =>
+            strat.strategy_id === sig.source || strat.id === sig.source || strat.name === sig.source
+        );
+        if (isAgent) return true;
+
+        // 3. Explicitly hide 'lite-rule' or 'manual' unless matched above
+        if (sig.source === 'lite-rule' || sig.source?.includes('lite')) return false;
+
+        // Default: Show others (System messages, etc)
+        return true;
+    });
 
 
     return (
@@ -142,7 +167,7 @@ export const DashboardHome: React.FC = () => {
             </div>
 
             {/* 3. Global History (Fleet Activity) */}
-            <DashboardHistory signals={recentSignals} />
+            <DashboardHistory signals={filteredSignals} />
         </div>
     );
 };
