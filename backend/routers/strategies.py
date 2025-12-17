@@ -32,12 +32,61 @@ def get_db():
 
 router = APIRouter(tags=["strategies"])
 
+router = APIRouter(tags=["strategies"])
+
+from routers.auth import get_current_user
+from models_db import User
+
 @router.get("/marketplace", response_model=List[Dict[str, Any]])
-async def get_marketplace():
+async def get_marketplace(db: Session = Depends(get_db)):
     """Retorna la configuración de 'Personas' del Marketplace."""
     from marketplace_config import refresh_personas, MARKETPLACE_PERSONAS
-    refresh_personas()
-    return MARKETPLACE_PERSONAS
+    from models_db import Signal, SignalEvaluation
+    from sqlalchemy import func
+
+    # 1. Get Base Config (from JSON/System)
+    personas = refresh_personas()
+    
+    # 2. Enrich with DB Stats
+    # We need to query Signal + SignalEvaluation for each persona
+    # source = "Marketplace:{id}"
+    
+    # Optimización: Hacer una sola query de agregación? 
+    # Select source, count(*), count_wins
+    # Pero el source es string.
+    
+    for p in personas:
+        target_source = f"Marketplace:{p['id']}"
+        
+        # Total Signals for this persona
+        total = db.query(func.count(Signal.id)).filter(Signal.source == target_source).scalar() or 0
+        
+        # Total Wins
+        wins = db.query(func.count(Signal.id)).join(SignalEvaluation).filter(
+            Signal.source == target_source,
+            SignalEvaluation.result == "WIN"
+        ).scalar() or 0
+        
+        # Calculate Win Rate
+        wr = 0.0
+        if total > 0:
+            wr = (wins / total) * 100
+            
+        # Inject into response (Override JSON defaults)
+        # Only override if we have data (or always? Let's show real data even if 0)
+        if total > 0:
+            p["win_rate"] = f"{int(wr)}%"
+            # Optional: Add badge or text for total trades
+            # p["frequency"] = f"{total} trades (Real)" 
+        else:
+            # Keep manual/marketing "win_rate" if no real data yet?
+            # Or show "Pending"?
+            # User wants "Professional". "Pending" or N/A is professional if no data.
+            # But let's fallback to the "Marketing" number if 0 real trades, 
+            # to keep the "Wow" factor during demo/setup.
+            pass
+
+    return personas
 
 from models_db import Signal, SignalEvaluation
 
@@ -202,7 +251,8 @@ async def get_strategy(strategy_id: str, db: Session = Depends(get_db)):
 async def update_strategy_config(
     strategy_id: str,
     update: StrategyConfigUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Actualiza configuración de una estrategia.
@@ -273,7 +323,8 @@ async def update_strategy_config(
 async def execute_strategy_manual(
     strategy_id: str,
     req: ExecuteStrategyRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Ejecuta una estrategia manualmente (útil para testing).
@@ -329,30 +380,37 @@ async def execute_strategy_manual(
         raise HTTPException(status_code=500, detail=f"Error executing strategy: {str(e)}")
 
 
-class CreatePersonaRequest(BaseModel):
+from models_db import StrategyConfig, User
+from scheduler import scheduler_instance
+from dependencies import require_pro, require_owner
+
+# --- 1. CRUD de Personas (StrategyConfig) ---
+
+
+class StrategyCreate(BaseModel):
     name: str
-    description: str
     symbol: str
     timeframe: str
     strategy_id: str
+    description: str
     risk_level: str
     expected_roi: str
     win_rate: str
     frequency: str
 
 @router.post("/marketplace/create")
-async def create_persona(req: CreatePersonaRequest):
+async def create_persona(config: StrategyCreate, current_user: User = Depends(require_pro)):
     """
-    Crea una nueva Persona en el Marketplace.
-    (Persistencia: user_strategies.json)
+    Crea una nueva 'persona' o configuración de estrategia.
+    Requiere PRO.
     """
     import json
     import re
     from marketplace_config import USER_STRATEGIES_FILE, refresh_personas
     
     # 1. Definir ID único (Sanitized)
-    safe_name = re.sub(r'[^a-z0-9]', '_', req.name.lower())
-    new_id = f"{safe_name}_{req.symbol.lower()}"
+    safe_name = re.sub(r'[^a-z0-9]', '_', config.name.lower())
+    new_id = f"{safe_name}_{config.symbol.lower()}"
     
     # Check if ID exists (in the FRESH list)
     current_personas = refresh_personas() # Ensure we have latest
@@ -366,15 +424,15 @@ async def create_persona(req: CreatePersonaRequest):
     # 2. Construir objeto
     new_persona = {
         "id": new_id,
-        "name": req.name,
-        "symbol": req.symbol,
-        "timeframe": req.timeframe,
-        "strategy_id": req.strategy_id,
-        "description": req.description,
-        "risk_level": req.risk_level,
-        "expected_roi": req.expected_roi,
-        "win_rate": req.win_rate,
-        "frequency": req.frequency,
+        "name": config.name,
+        "symbol": config.symbol,
+        "timeframe": config.timeframe,
+        "strategy_id": config.strategy_id,
+        "description": config.description,
+        "risk_level": config.risk_level,
+        "expected_roi": config.expected_roi,
+        "win_rate": config.win_rate,
+        "frequency": config.frequency,
         "color": "indigo", 
         "is_active": True,
         "is_custom": True
@@ -402,7 +460,7 @@ async def create_persona(req: CreatePersonaRequest):
 
 
 @router.delete("/marketplace/{persona_id}")
-async def delete_persona(persona_id: str):
+async def delete_persona(persona_id: str, current_user: User = Depends(get_current_user)):
     """
     Elimina una Persona personalizada del Marketplace (JSON).
     Source of Truth: JSON File directly.

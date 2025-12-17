@@ -13,6 +13,9 @@ import time
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
+import uuid
+from sqlalchemy.orm import Session
+
 
 # Setup path
 current_dir = Path(__file__).parent
@@ -61,12 +64,65 @@ class StrategyScheduler:
         self.last_run = {} # {persona_id: timestamp}
         self.processed_signals = {} # {signal_key: timestamp}
         self.last_signal_direction = {} # {persona_id_token: direction} (For alternation enforcement)
+
+        # Lock Config
+        self.lock_id = str(uuid.uuid4())
+        self.lock_ttl = 30 # seconds
+        self.lock_name = "global_scheduler_lock"
+
+    def acquire_lock(self, db: Session) -> bool:
+        """Intenta adquirir o renovar el lock de base de datos."""
+        from models_db import SchedulerLock
+        
+        now = datetime.utcnow()
+        lock = db.query(SchedulerLock).filter(SchedulerLock.lock_name == self.lock_name).first()
+        
+        if not lock:
+            # Create fresh lock
+            try:
+                lock = SchedulerLock(
+                    lock_name=self.lock_name,
+                    owner_id=self.lock_id,
+                    expires_at=now + timedelta(seconds=self.lock_ttl)
+                )
+                db.add(lock)
+                db.commit()
+                print(f"🔒 Lock acquired (new): {self.lock_id}")
+                return True
+            except:
+                db.rollback()
+                return False
+        
+        # Check if expired or mine
+        if lock.expires_at < now or lock.owner_id == self.lock_id:
+            lock.owner_id = self.lock_id
+            lock.expires_at = now + timedelta(seconds=self.lock_ttl)
+            db.commit()
+            return True
+            
+        print(f"🔒 Lock held by other instance ({lock.owner_id}). Retrying...")
+        return False
     
     def run(self):
         """Loop principal."""
         iteration = 0
         try:
             while True:
+                # 0. Gestion de Lock
+                # Cada iteración intentamos renovar. Si perdemos el lock, esperamos.
+                db = SessionLocal()
+                try:
+                    if not self.acquire_lock(db):
+                        print("⏳ Waiting for lock...")
+                        time.sleep(10)
+                        continue
+                except Exception as e:
+                    print(f"⚠️ Lock Error: {e}")
+                    time.sleep(5)
+                    continue
+                finally:
+                    db.close()
+
                 iteration += 1
                 # User requests Buenos Aires Time (UTC-3) for logs
                 now = datetime.utcnow()
@@ -124,7 +180,8 @@ class StrategyScheduler:
                             # Enriquecer source con el ID de la persona
                             # sig.source = f"Marketplace:{p_id}" 
                             # FIX user confusion: Use the Human Readable Name (e.g. "The Scalper")
-                            sig.source = persona['name']
+                            sig.source = f"Marketplace:{p_id}"
+                            # sig.source = persona['name'] # Reverted to ID for consistent analytics
                             log_signal(sig)
                             count += 1
                             print(f"    ⭐ SIGNAL: {sig.direction} @ {sig.entry}")
@@ -138,12 +195,21 @@ class StrategyScheduler:
                         print(f"  ❌ Error executing {persona['name']}: {e}")
                 
                 # 3. Evaluador PnL (Critico para mostrar profit real)
-                print("  ⚖️  Evaluating Pending Signals...")
+                # print("  ⚖️  Evaluating Pending Signals...") # Less verbose
                 try:
-                    from evaluated_logger import evaluate_all_tokens
-                    processed, new_evals = evaluate_all_tokens()
-                    if new_evals > 0:
-                        print(f"    ✅ Evaluated {new_evals} signals")
+                    from core.signal_evaluator import evaluate_pending_signals
+                    # Pass the DB session used for locking? No, create new one or pass valid one.
+                    # evaluate_pending_signals(db) -> wait, DB is closed in finally block above!
+                    # Need New Session.
+                    
+                    eval_db = SessionLocal()
+                    try:
+                        new_evals = evaluate_pending_signals(eval_db)
+                        if new_evals > 0:
+                            print(f"  ✅ Evaluated {new_evals} signals")
+                    finally:
+                        eval_db.close()
+                        
                 except Exception as e:
                     print(f"  ❌ Eval Error: {e}")
 
@@ -153,7 +219,9 @@ class StrategyScheduler:
         except KeyboardInterrupt:
             print("\n🛑 Stopped.")
 
+# Expose instance for imports
+scheduler_instance = StrategyScheduler(loop_interval=60)
+
 if __name__ == "__main__":
-    scheduler = StrategyScheduler(loop_interval=10)
-    scheduler.run()
+    scheduler_instance.run()
 

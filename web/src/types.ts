@@ -98,6 +98,8 @@ export interface User {
   role: 'admin' | 'user';
   avatar_url?: string;
   subscription_status: 'active' | 'inactive' | 'trial' | 'free' | 'trader' | 'pro';
+  plan?: string; // Backend plan (FREE/PRO/OWNER)
+  plan_status?: string;
   onboarding_completed?: boolean;
 }
 
@@ -124,16 +126,6 @@ export interface UserProfile {
   portfolio: {
     followed_signals: FollowedSignal[];
   };
-}
-
-export interface LeaderboardEntry {
-  rank: number;
-  user_name: string;
-  avatar_url: string;
-  win_rate: number;
-  total_pnl: number;
-  signals_tracked: number;
-  is_current_user?: boolean;
 }
 
 export interface Notification {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import traceback
 from typing import Dict, Any, Optional, Literal
 from datetime import datetime
@@ -21,8 +21,16 @@ router = APIRouter()
 
 # ==== 9. Endpoint LITE ====
 
+# Auth Dependency
+from routers.auth import get_current_user
+from models_db import User
+from core.limiter import limiter
+from fastapi import Request
+from dependencies import require_pro
+
 @router.post("/lite")
-def analyze_lite(req: LiteReq):
+@limiter.limit("10/minute")
+def analyze_lite(request: Request, req: LiteReq, current_user: User = Depends(get_current_user)):
     """
     Wrapper seguro para capturar errores 500 y mostrarlos en el frontend.
     """
@@ -89,7 +97,8 @@ def _analyze_lite_unsafe(req: LiteReq):
         confidence=lite_signal.confidence,
         rationale=lite_signal.rationale,
         source=lite_signal.source,
-        extra=indicators
+        extra=indicators,
+        user_id=current_user.id
     )
     
     log_signal(unified_sig)
@@ -102,7 +111,8 @@ def _analyze_lite_unsafe(req: LiteReq):
 # ==== 10. Endpoint PRO ====
 
 @router.post("/pro")
-async def analyze_pro(req: ProReq):
+@limiter.limit("2/minute")
+async def analyze_pro(request: Request, req: ProReq, current_user: User = Depends(require_pro)):
     """
     Generates a deep AI analysis using Gemini/DeepSeek.
     """

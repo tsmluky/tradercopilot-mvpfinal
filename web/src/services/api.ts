@@ -5,7 +5,7 @@ import {
   AdvisorResponse,
   SignalEvaluation,
   LogRow,
-  LeaderboardEntry,
+
   ChatMessage,
   AnalysisMode,
   UserProfile,
@@ -336,56 +336,6 @@ export async function notifyTelegram(message: string): Promise<boolean> {
   }
 }
 
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    user_name: "AlphaSeeker",
-    avatar_url: "https://ui-avatars.com/api/?name=AS&background=ffd700&color=000",
-    win_rate: 78,
-    total_pnl: 45.2,
-    signals_tracked: 124,
-  },
-  {
-    rank: 2,
-    user_name: "CryptoWhale",
-    avatar_url: "https://ui-avatars.com/api/?name=CW&background=c0c0c0&color=000",
-    win_rate: 72,
-    total_pnl: 38.5,
-    signals_tracked: 98,
-  },
-  {
-    rank: 3,
-    user_name: "SatoshiDisciple",
-    avatar_url: "https://ui-avatars.com/api/?name=SD&background=cd7f32&color=000",
-    win_rate: 68,
-    total_pnl: 32.1,
-    signals_tracked: 156,
-  },
-  {
-    rank: 4,
-    user_name: "Pancho Trader",
-    avatar_url:
-      "https://ui-avatars.com/api/?name=Pancho+Trader&background=10b981&color=fff",
-    win_rate: 65,
-    total_pnl: 28.4,
-    signals_tracked: 42,
-    is_current_user: true,
-  },
-  {
-    rank: 5,
-    user_name: "MoonBoy23",
-    avatar_url: "https://ui-avatars.com/api/?name=MB&background=334155&color=fff",
-    win_rate: 55,
-    total_pnl: 12.8,
-    signals_tracked: 210,
-  },
-];
-
-export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  // De momento 100 % mock; listo para conectar a backend cuando quieras.
-  return new Promise((resolve) => setTimeout(() => resolve(MOCK_LEADERBOARD), 600));
-}
-
 // Chat del Advisor (demo-friendly)
 // - Primer mensaje: usa analyzeAdvisor y devuelve un ChatMessage tipo "analysis"
 // - Mensajes siguientes: llama a /analyze/advisor/chat
@@ -573,6 +523,51 @@ export async function togglePersona(id: string): Promise<any> {
   return res.json();
 }
 
+// =========================
+// M5: Admin Panel API
+// =========================
+
+export async function fetchAdminStats(): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/stats`, { method: "GET" });
+  if (!res.ok) throw new Error("Failed to fetch admin stats");
+  return res.json();
+}
+
+export async function fetchAdminUsers(page = 1, search = ""): Promise<any> {
+  const query = new URLSearchParams({ page: page.toString(), size: "20" });
+  if (search) query.append("q", search);
+
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/users?${query.toString()}`, { method: "GET" });
+  if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+}
+
+export async function updateUserPlan(userId: number, plan: string): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/users/${userId}/plan`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan })
+  });
+  if (!res.ok) throw new Error("Failed to update plan");
+  return res.json();
+}
+
+export async function fetchAdminSignals(page = 1): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/signals?page=${page}&size=50`, { method: "GET" });
+  if (!res.ok) throw new Error("Failed to fetch signals");
+  return res.json();
+}
+
+export async function toggleSignalVisibility(signalId: number, isHidden: boolean): Promise<any> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/admin/signals/${signalId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_hidden: isHidden })
+  });
+  if (!res.ok) throw new Error("Failed to toggle signal visibility");
+  return res.json();
+}
+
 export const api = {
   analyzeLite,
   analyzePro,
@@ -581,7 +576,7 @@ export const api = {
   triggerBatchEvaluation,
   getSignalEvaluation,
   notifyTelegram,
-  fetchLeaderboard,
+
   sendAdvisorChat,
   login,
   register,
@@ -590,8 +585,13 @@ export const api = {
   fetchPersonaHistory,
   createPersona,
   deletePersona,
-  createPersona,
-  deletePersona,
   togglePersona,
-  getOHLCV
+  getOHLCV,
+
+  // Admin
+  fetchAdminStats,
+  fetchAdminUsers,
+  updateUserPlan,
+  fetchAdminSignals,
+  toggleSignalVisibility
 };

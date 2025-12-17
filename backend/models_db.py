@@ -21,8 +21,18 @@ class Signal(Base):
     raw_response = Column(Text, nullable=True)
     strategy_id = Column(String, index=True, nullable=True)
     
+    # Validation / Isolation
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    
+    # Idempotency constraint
+    idempotency_key = Column(String, unique=True, index=True)
+    
     # Relationship to evaluation
     evaluation = relationship("SignalEvaluation", back_populates="signal", uselist=False)
+
+    # Soft Delete / Admin Visibility
+    is_hidden = Column(Integer, default=0) # 0=Visible, 1=Hidden (Boolean as Integer for SQLite/Postgres compatibility)
+
 
 class SignalEvaluation(Base):
     __tablename__ = "signal_evaluations"
@@ -43,7 +53,13 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     name = Column(String)
     hashed_password = Column(String)
-    role = Column(String, default="user")
+    role = Column(String, default="user") # Permissions: user, admin
+    
+    # Monetization / Entitlements
+    plan = Column(String, default="FREE") # FREE, PRO, OWNER
+    plan_status = Column(String, default="active") # active, inactive
+    plan_expires_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -93,4 +109,33 @@ class PushSubscription(Base):
     p256dh = Column(String)
     auth = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class SchedulerLock(Base):
+    """
+    Lock distribuido para evitar múltiples instancias del scheduler.
+    """
+    __tablename__ = "scheduler_lock"
+
+    lock_name = Column(String, primary_key=True) # "main_scheduler"
+    owner_id = Column(String) # UUID de la instancia
+    expires_at = Column(DateTime)
+    expires_at = Column(DateTime)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AdminAuditLog(Base):
+    """
+    Registro inmutable de acciones administrativas.
+    REQ: Trazabilidad completa (Sale-Ready).
+    """
+    __tablename__ = "admin_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"))
+    action = Column(String) # UPDATE_PLAN, HIDE_SIGNAL, UNHIDE_SIGNAL
+    target_id = Column(String) # ID del recurso afectado (User ID o Signal ID)
+    details = Column(Text) # JSON o texto descriptivo
+    
+    ip_address = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 

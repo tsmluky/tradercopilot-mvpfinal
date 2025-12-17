@@ -118,6 +118,11 @@ class Signal(BaseModel):
         max_length=20
     )
 
+    user_id: Optional[int] = Field(
+        None,
+        description="ID del usuario propietario de la señal (isolation). Null = Sistema/Global."
+    )
+
     extra: Optional[Dict[str, Any]] = Field(
         None,
         description="Metadatos adicionales específicos de cada estrategia (dict libre)",

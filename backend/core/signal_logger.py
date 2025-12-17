@@ -126,6 +126,11 @@ def _write_to_db(signal: Signal, mode: str) -> None:
     try:
         from database import SessionLocal
         from models_db import Signal as SignalModel
+        from sqlalchemy.exc import IntegrityError
+
+        # Compute Idempotency Key
+        ts_iso = signal.timestamp.isoformat()
+        idem_key = f"{signal.strategy_id}|{signal.token.upper()}|{signal.timeframe}|{ts_iso}|{signal.user_id}|{signal.mode}"
 
         # Preparar datos para el modelo DB
         db_signal = SignalModel(
@@ -140,9 +145,10 @@ def _write_to_db(signal: Signal, mode: str) -> None:
             rationale=signal.rationale if signal.rationale else "",
             source=signal.source,
             mode=mode,
-            # raw_response podría guardar el campo 'extra' si necesitamos trazabilidad
             raw_response=str(signal.extra) if signal.extra else None,
             strategy_id=signal.strategy_id,
+            idempotency_key=idem_key,
+            user_id=signal.user_id
         )
 
         db = SessionLocal()
@@ -165,6 +171,10 @@ def _write_to_db(signal: Signal, mode: str) -> None:
             except Exception as push_err:
                 print(f"[PUSH] ❌ Error enviando push: {push_err}")
             # -------------------------
+
+        except IntegrityError:
+            db.rollback()
+            print(f"[DB] ℹ️ Signal ignored (Duplicate Idempotency Key): {idem_key}")
 
         except Exception as db_err:
             print(f"[DB] ❌ Error CRÍTICO al guardar en DB: {db_err}")

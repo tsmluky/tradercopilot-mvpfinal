@@ -23,35 +23,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
     useEffect(() => {
-        // DEV BYPASS: ALWAYS LOGGED IN
-        // We simulate a login to "Admin" for local development
-        // This allows us to skip the Login Screen even if Backend is shaky initially.
-        const bypassWebLogin = async () => {
-            setUserProfile({
-                user: {
-                    id: "1", // String as expected by UserProfile
-                    email: "admin@tradercopilot.com",
-                    name: "Dev Admin",
-                    role: "admin",
-                    subscription_status: 'active',
-                    onboarding_completed: true,
-                    avatar_url: `https://ui-avatars.com/api/?name=Dev+Admin&background=indigo&color=fff`
-                },
-                preferences: {
-                    favorite_tokens: ['sol'],
-                    default_timeframe: '1h',
-                    notifications: {
-                        trade_updates: true,
-                        market_volatility: false,
-                        system_status: true
-                    }
-                },
-                portfolio: { followed_signals: [] }
-            });
-            setIsAuthenticated(true);
+        const checkAuth = async () => {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                try {
+                    // Validate token with backend
+                    const data = await api.getMe();
+                    // Map Backend Plan (FREE, PRO, OWNER) to Frontend (free, trader, pro)
+                    const backendPlan = data.plan?.toUpperCase() || 'FREE';
+                    let frontendPlan: 'free' | 'trader' | 'pro' = 'free';
+
+                    if (backendPlan === 'PRO') frontendPlan = 'trader';
+                    if (backendPlan === 'OWNER') frontendPlan = 'pro'; // Owner gets top tier
+
+                    setUserProfile({
+                        user: {
+                            ...data,
+                            role: data.role, // ensure role is passed
+                            subscription_status: frontendPlan,
+                            onboarding_completed: localStorage.getItem('onboarding_completed') === 'true',
+                            avatar_url: data.avatar_url || `https://ui-avatars.com/api/?name=${data.name}&background=10b981&color=fff`
+                        },
+                        preferences: {
+                            favorite_tokens: ['eth', 'btc'],
+                            default_timeframe: '30m',
+                            notifications: { trade_updates: true, market_volatility: true, system_status: true }
+                        },
+                        portfolio: { followed_signals: JSON.parse(localStorage.getItem('followed_signals') || '[]') }
+                    });
+                    setIsAuthenticated(true);
+                } catch (err) {
+                    console.error('Token validation failed', err);
+                    localStorage.removeItem('auth_token');
+                    setIsAuthenticated(false);
+                }
+            }
             setIsLoading(false);
         };
-        bypassWebLogin();
+        checkAuth();
     }, []);
 
     const login = async (email?: string, password?: string) => {
@@ -65,10 +74,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 // Fetch profile immediately
                 const user = data.user;
+                // Map Backend Plan (FREE, PRO, OWNER) to Frontend (free, trader, pro)
+                const backendPlan = user.plan?.toUpperCase() || 'FREE';
+                let frontendPlan: 'free' | 'trader' | 'pro' = 'free';
+
+                if (backendPlan === 'PRO') frontendPlan = 'trader';
+                if (backendPlan === 'OWNER') frontendPlan = 'pro';
+
                 setUserProfile({
                     user: {
                         ...user,
-                        subscription_status: 'active',
+                        role: user.role,
+                        subscription_status: frontendPlan,
                         onboarding_completed: false,
                         avatar_url: `https://ui-avatars.com/api/?name=${user.name}&background=10b981&color=fff`
                     },

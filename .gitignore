@@ -35,10 +35,10 @@ docs/dev_notes/
 trading_lab/
 
 # Hide Strategy Implementations but show Architecture
-backend/strategies/*.py
-!backend/strategies/__init__.py
-!backend/strategies/base.py
-!backend/strategies/registry.py
+# backend/strategies/*.py
+# !backend/strategies/__init__.py
+# !backend/strategies/base.py
+# !backend/strategies/registry.py
 
 # Hide Specific Configuration Parameters
 backend/quant_config.py

@@ -13,7 +13,7 @@ import {
     CreditCard
 } from 'lucide-react';
 
-export const MembershipPage: React.FC = () => {
+export const PricingPage: React.FC = () => {
     const { userProfile, upgradeSubscription } = useAuth();
     const currentPlan = userProfile?.user.subscription_status || 'free';
     const [processing, setProcessing] = React.useState<string | null>(null);
@@ -36,7 +36,7 @@ export const MembershipPage: React.FC = () => {
     const plans = [
         {
             id: 'free',
-            name: 'Rookie',
+            name: 'Explorer',
             price: '$0',
             period: 'forever',
             description: 'Perfect for checking the market occasionally.',
@@ -74,8 +74,8 @@ export const MembershipPage: React.FC = () => {
         },
         {
             id: 'pro',
-            name: 'Whale',
-            price: '$99',
+            name: 'Institutional',
+            price: 'Contact',
             period: '/ month',
             description: 'For serious algorithmic traders and automation.',
             features: [
@@ -87,7 +87,7 @@ export const MembershipPage: React.FC = () => {
                 { text: 'Multi-Exchange Connection', included: true },
                 { text: 'API Access', included: true },
             ],
-            cta: 'Become a Whale',
+            cta: 'Contact Sales',
             active: currentPlan === 'pro',
             highlight: false
         }
@@ -164,7 +164,7 @@ export const MembershipPage: React.FC = () => {
                         </div>
 
                         <button
-                            disabled={plan.active || processing === plan.id}
+                            disabled={plan.active}
                             onClick={() => handleUpgrade(plan.id)}
                             className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98]
                 ${plan.active
@@ -175,17 +175,9 @@ export const MembershipPage: React.FC = () => {
                                 }
               `}
                         >
-                            {processing === plan.id ? (
-                                <span className="flex items-center justify-center gap-2 animate-pulse">
-                                    <Clock size={16} className="animate-spin" /> Processing...
-                                </span>
-                            ) : plan.active ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <Check size={16} /> Current Plan
-                                </span>
-                            ) : (
-                                plan.cta
-                            )}
+                            <span className="flex items-center justify-center gap-2 opacity-100">
+                                {plan.active ? <><Check size={16} /> Current Plan</> : processing === plan.id ? "Processing..." : plan.cta}
+                            </span>
                         </button>
                     </div>
                 ))}

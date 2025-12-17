@@ -7,8 +7,11 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks, WebSocket, WebSocketDisconnect, Response
 from dotenv import load_dotenv
+
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 # ==== 1. Configuración de entorno ====
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,17 +36,28 @@ from rag_context import build_token_context
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-app = FastAPI(
-    title="TraderCopilot Backend",
-    version="0.8.2-force",
-    description="API principal para generación de señales y registro de logs. (Forced Deployment)"
-)
+from core.limiter import limiter
+from slowapi.middleware import SlowAPIMiddleware
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "db": "connected"}
+# === App Initialization ===
+app = FastAPI(title="TraderCopilot Backend", version="2.0.0")
 
-# === CORS Configuration ===
+# Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware) # Must be added after other middlewares if order matters, but here is fine.
+
+# Payload Size Limit Middleware (64KB)
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+        if content_length:
+             if int(content_length) > 64 * 1024:
+                 return Response("Payload too large", status_code=413)
+    return await call_next(request)
+
+# === CORS ===
 # En desarrollo: localhost
 # En producción (Railway): permitir todos los orígenes o configurar específicamente
 # CORS Configuration - Permissive for MVP
@@ -55,8 +69,60 @@ origins = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:4173",
     "https://tradercopilot-mvpfinal.vercel.app",
-    "*" 
+    "*"
 ]
+print(f"[CORS] Allowed Origins: {origins}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+def health_check():
+    """Liveness probe: App is running."""
+    return {"status": "ok", "version": "0.8.2"}
+
+@app.get("/ready")
+def ready_check():
+    """Readiness probe: DB is accessible."""
+    try:
+        from database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            return {"status": "ready", "db": "connected"}
+        finally:
+            db.close()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Database not ready: {e}")
+
+# === Middleware ===
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    import time
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    # Simple Request Logging
+    # print(f"[REQ] {request.method} {request.url.path} - {process_time:.4f}s")
+    return response
+
+# === CORS Configuration ===
+# En desarrollo: localhost
+# En producción (Railway): permitir todos los orígenes o configurar específicamente
+# CORS Configuration - Permissive for MVP
+origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+if origins == ["*"]:
+    print(f"[CORS] ⚠️ WARNING: Allowing ALL origins (*). Set ALLOWED_ORIGINS in .env for production.")
+else:
+    print(f"[CORS] ✅ Restricted Origins: {origins}")
 print(f"[CORS] Allowed Origins: {origins}")
 
 app.add_middleware(
@@ -144,6 +210,7 @@ from routers.system import router as system_router
 from routers.analysis import router as analysis_router
 from routers.backtest import router as backtest_router
 from routers.auth import router as auth_router
+from routers.admin import router as admin_router # M5: Admin Panel
 
 app.include_router(strategies_router, prefix="/strategies", tags=["Strategies"])
 app.include_router(logs_router, prefix="/logs", tags=["Logs"])
@@ -154,6 +221,7 @@ app.include_router(market_router, prefix="/market", tags=["Market Data"])
 app.include_router(system_router, prefix="/system", tags=["System"])
 app.include_router(backtest_router)
 app.include_router(auth_router) # [NEW] Register Auth Router
+app.include_router(admin_router, prefix="/admin", tags=["Admin"]) # M5: Admin Panel
 
 
 # ==== 4. Configuración global ====

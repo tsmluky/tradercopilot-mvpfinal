@@ -9,7 +9,8 @@ import { StrategyDetailsPage } from './pages/StrategyDetailsPage';
 import { BacktestPage } from './pages/BacktestPage';
 import { LogsPage } from './pages/LogsPage';
 import { AdvisorPage } from './pages/AdvisorPage';
-import { MembershipPage } from './pages/MembershipPage';
+import { PricingPage } from './pages/PricingPage';
+import { AdminPage } from './pages/AdminPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -62,9 +63,10 @@ const App: React.FC = () => {
           <Route path="/advisor" element={<ProtectedRoute><AdvisorPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
           <Route path="/backtest" element={<ProtectedRoute><BacktestPage /></ProtectedRoute>} />
-          <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
+          <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} /> {/* Added AdminPage route */}
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

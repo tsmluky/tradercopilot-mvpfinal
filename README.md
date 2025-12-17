@@ -1,84 +1,65 @@
-<div align="center">
-  <h1>🚀 TraderCopilot</h1>
-  <h3>Institutional-Grade AI Trading Assistant for Retail</h3>
-  
-  <p>
-    <b>Real-time Logic</b> • <b>RAG Context</b> • <b>Agentic Analysis</b>
-  </p>
+# TraderCopilot 🚀
+**AI-Powered Institutional Trading Intelligence**
 
-  [![Status](https://img.shields.io/badge/Status-Private_Beta-orange?style=for-the-badge)]()
-  [![Stack](https://img.shields.io/badge/Stack-FastAPI_|_React_|_PostgreSQL-blue?style=for-the-badge)]()
-  [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)]()
-</div>
+TraderCopilot is a next-generation trading platform that combines **Quantitative Analysis**, **Autonomous Strategies**, and **Generative AI** into a unified workspace. It is designed to empower traders with real-time insights, automated signal execution, and deep market intelligence.
 
----
+![Dashboard Preview](./docs/dashboard_preview.png)
 
-## 💎 The Vision
+## 🌟 Key Features
 
-**TraderCopilot** is not just a scanner; it is an **active AI agent** designed to democratize institutional-grade market analysis. 
+### 1. 🧠 AI Signal Hub
+- **Hybrid Intelligence**: Fuses mathematical indicators (RSI, MACD, BB) with AI logic.
+- **Real-Time Feed**: Live signal stream with confidence scores and RAG-enriched rationale.
+- **DeepSeek Integration**: "Ask Advisor" feature enables conversational analysis of any asset.
 
-While traditional retail tools offer static charts, TraderCopilot acts as a 24/7 analyst that:
-1.  **Monitors** 150+ assets every minute.
-2.  **Filters** noise using proprietary algorithms (Lite/Pro logic).
-3.  **Contextualizes** price action using RAG (News, On-Chain Data, Sentiment).
-4.  **Generates** actionable, risk-managed trade plans.
+### 2. 🤖 Strategy Marketplace
+- **Autonomous Personas**: Pre-configured strategies (e.g., *Titan BTC*, *The Scalper*) that run 24/7.
+- **Paper Trading Engine**: Real-time evaluation of signals against live market data.
+- **Verified Performance**: Strategies display dynamic "Win Rate" and "Total Signals" based on tracking.
 
-> *"We don't just show you the chart; we interpret the story behind it."*
+### 3. 🛡️ Admin & Logic Control
+- **God-Mode Dashboard**: Full view of all users, signals, and system health.
+- **Soft-Delete System**: Manage bad signals without losing audit trails.
+- **Entitlements Engine**: Robust RBAC (Free/Pro/Owner) to monetize premium features.
 
----
+## 🛠️ Tech Stack
 
-## 🔥 Key Capabilities
+- **Backend**: Python 3.10+, FastAPI, SQLAlchemy, Pydantic.
+- **Frontend**: React 18, TypeScript, TailwindCSS, Recharts.
+- **Database**: PostgreSQL (Production) / SQLite (Dev).
+- **AI/LLM**: DeepSeek-V3 via API + Local RAG Context.
 
-### 📡 Active Market Sentinel
-*   **Multi-Timeframe Scanning**: Simultaneous monitoring of Scalp (1m/5m), Swing (1h/4h), and Macro (1d) trends.
-*   **Algorithmic Gating**: Signals are classified by tier (Rookie/Trader/Whale) to monetize premium alpha.
-*   **Anomaly Detection**: Automatically flags volume spikes and RSI divergences instantly.
+## 🚀 Quickstart
 
-### 🧠 The "Advisor" (Agentic AI)
-*   **Conversational Alpha**: Chat directly with the system to ask *"Is ETH risky right now?"* or *"Analyze this breakdown."*
-*   **RAG-Powered**: Answers are grounded in real data (Price, Indicators, News), not hallucinations.
-*   **Risk Guardrails**: The AI proactively suggests Stop Losses and leverage limits based on volatility.
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
 
-### 🛡️ Automated Evaluation Loop
-*   **Self-Correcting**: The system tracks every signal it generates.
-*   **PnL Tracking**: Automatically marks signals as `WIN`, `LOSS`, or `BE` (Breakeven) without human intervention.
-*   **Leaderboard**: Gamified performance tracking for users (and the AI itself).
-
----
-
-## 🏗️ System Architecture
-
-TraderCopilot operates on a **Service-Oriented Architecture** designed for high availability and low latency.
-
-```mermaid
-graph TD
-    User([User]) <--> Client[React Frontend Vite]
-    Client <--> API[FastAPI Gateway]
-    
-    subgraph "Core Engine (Private)"
-        API <--> Controller[Logic Controller]
-        Controller <--> DB[(PostgreSQL)]
-        
-        Worker[Background Scheduler] --> Binance[(Binance Data)]
-        Worker --> Log[(Signal Logs)]
-        Worker --> Analyzer[Strategy Engine]
-        Analyzer --> DB
-    end
-
-    Analyzer -.-> DeepSeek[DeepSeek R1 Inference]
+### 1. Backend Setup
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
 ```
 
+### 2. Frontend Setup
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### 3. Usage
+- **Frontend**: http://localhost:5173
+- **Swagger API**: http://localhost:8000/docs
+- **Login**: `admin@tradercopilot.com` / `admin123` (Owner Access)
+
+## 🔒 Security
+- **JWT Authentication**: Secure session management.
+- **Role-Based Access**: Strict `require_owner` dependencies for admin routes.
+- **Audit Logging**: Immutable logs for all sensitive administrative actions.
+
 ---
-
-## 🔒 Security & Access
-
-This software is **Proprietary**.
-*   **Identity Management**: Secure JWT-based authentication.
-*   **Tiered Access**: Role-Based Access Control (RBAC) allows strict gating of features (Scanner, Chat, Pro Data).
-
----
-
-## 📜 License
-
-**Copyright © 2025 TraderCopilot Team.** All Rights Reserved.
-This project is proprietary software. Unauthorized copying, modification, distribution, or use of this file, via any medium, is strictly prohibited.
+*Built for the Future of Trading.*

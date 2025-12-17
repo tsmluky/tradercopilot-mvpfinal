@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,22 +15,44 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db)):
-    """(DEV BYPASS) Siempre retorna usuario Admin."""
-    # En producción real, descomentar validación JWT.
-    # Por ahora, para arreglar el "Login Loop" local:
+    """Verifica el token JWT y retorna el usuario actual."""
+    from jose import JWTError, jwt
+    from fastapi import status
     
-    # Intentar buscar el admin real en DB
-    result = await db.execute(select(User).where(User.email == "admin@tradercopilot.com"))
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # Decode and Verify Token
+        from core.security import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            print("[AUTH] Token missing 'sub' claim")
+            raise credentials_exception
+    except JWTError as e:
+        print(f"[AUTH] JWT Decode Error: {e}")
+        raise credentials_exception
+        
+    # Get User from DB
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalars().first()
     
-    if user:
-        return user
+    if user is None:
+        print(f"[AUTH] User {email} not found in DB")
+        raise credentials_exception
         
-    # Fallback supremo (si no hay DB)
-    return User(id=1, email="admin@tradercopilot.com", name="Dev Admin (Fallback)", role="admin")
+    return user
+
+from core.limiter import limiter
 
 @router.post("/token")
+@limiter.limit("5/minute")
 async def login_for_access_token(
+    request: Request, # Required for SlowAPI
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: AsyncSession = Depends(get_db)
 ):
@@ -58,7 +80,10 @@ async def login_for_access_token(
             "id": user.id,
             "email": user.email,
             "name": user.name,
-            "role": user.role
+            "name": user.name,
+            "role": user.role,
+            "plan": user.plan,
+            "plan_status": user.plan_status
         }
     }
 
@@ -95,6 +120,9 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
+        "name": current_user.name,
         "role": current_user.role,
+        "plan": current_user.plan,
+        "plan_status": current_user.plan_status,
         "avatar_url": f"https://ui-avatars.com/api/?name={current_user.name}&background=10b981&color=fff"
     }
