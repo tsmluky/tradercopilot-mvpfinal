@@ -139,3 +139,23 @@ class AdminAuditLog(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 
+class DailyUsage(Base):
+    """
+    Control de cuotas diarias por usuario.
+    Clave compuesta única: (user_id, feature, date).
+    """
+    __tablename__ = "daily_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    feature = Column(String, index=True)  # 'ai_analysis', 'advisor_chat'
+    date = Column(String, index=True)     # YYYY-MM-DD
+    count = Column(Integer, default=0)
+
+    # Unique constraint to prevent race conditions (handled by DB logic usually, 
+    # but index helps). In Postgres we'd use a UniqueConstraint.
+    # For now, we rely on the application logic 'check_and_increment' doing a localized lock
+    # or atomic update.
+
+
+

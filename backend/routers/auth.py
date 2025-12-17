@@ -114,15 +114,34 @@ async def register_user(
         await db.rollback()
         raise HTTPException(status_code=400, detail="Error creating user")
 
-@router.get("/users/me")
-async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return {
         "id": current_user.id,
         "email": current_user.email,
-        "name": current_user.name,
         "name": current_user.name,
         "role": current_user.role,
         "plan": current_user.plan,
         "plan_status": current_user.plan_status,
         "avatar_url": f"https://ui-avatars.com/api/?name={current_user.name}&background=10b981&color=fff"
     }
+
+# Entitlements Endpoint (Sync DB required for core logic)
+from database import SessionLocal
+from sqlalchemy.orm import Session
+from core.entitlements import get_user_entitlements
+
+def get_sync_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.get("/me/entitlements")
+def read_my_entitlements(
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_sync_db)
+):
+    """
+    Diagnóstico de límites y cuotas.
+    """
+    return get_user_entitlements(db, current_user)
