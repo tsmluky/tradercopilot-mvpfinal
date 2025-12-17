@@ -466,10 +466,13 @@ async def get_logs(mode: str, token: str):
 # ==== 9. Endpoint Evaluacion ====
 
 # ==== 8b. Dependency Injection for Entitlements ====
+# ==== 8b. Dependency Injection for Entitlements ====
 from routers.auth import get_current_user
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from core.entitlements import assert_token_allowed, check_and_increment_quota, can_use_advisor
+from fastapi import Depends
+from models_db import User
 
 def get_db():
     db = SessionLocal()

@@ -6,7 +6,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     userProfile: UserProfile | null;
-    login: () => Promise<void>;
+    login: (email?: string, password?: string) => Promise<void>;
     logout: () => void;
     completeOnboarding: () => void;
     updateProfile: (name: string, favorites: string[]) => Promise<void>;

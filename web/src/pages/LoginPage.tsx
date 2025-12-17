@@ -32,7 +32,7 @@ export const LoginPage: React.FC = () => {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError('Invalid credentials. Try demo@tradercopilot.com / demo');
+      setError('Invalid credentials.');
     } finally {
       setLoading(false);
     }
@@ -40,6 +40,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-emerald-500/30 overflow-x-hidden font-sans">
+
 
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -181,11 +182,7 @@ export const LoginPage: React.FC = () => {
                 </button>
               </form>
 
-              <div className="mt-6 pt-6 border-t border-slate-800/50 text-center">
-                <p className="text-xs text-slate-500">
-                  For evaluation access use <code className="text-slate-400 font-mono bg-slate-800 px-1 py-0.5 rounded border border-slate-700/50">demo</code> credentials.
-                </p>
-              </div>
+
             </div>
           </div>
         </div>
