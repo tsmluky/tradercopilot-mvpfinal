@@ -30,10 +30,6 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
 
   const { userProfile, toggleFollow } = useAuth();
 
-  // Time Limit Logic (30s para seguir la señal)
-  const [timeLeft, setTimeLeft] = useState<number>(30);
-  const [isExpired, setIsExpired] = useState(false);
-
   const isLong = signal.direction === 'long';
   const directionColor = isLong ? 'text-emerald-400' : 'text-rose-400';
   const baseBg = isLong ? 'bg-emerald-500/5' : 'bg-rose-500/5';
@@ -79,38 +75,6 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
     }
   }, [signal]);
 
-  // Countdown Timer Logic (30s desde timestamp)
-  useEffect(() => {
-    if (isFollowed) return; // si ya está seguida, no contamos
-
-    const createdTime = new Date(signal.timestamp).getTime();
-
-    const update = () => {
-      const now = Date.now();
-      const secondsPassed = (now - createdTime) / 1000;
-      const remaining = Math.max(0, 30 - secondsPassed);
-
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        setIsExpired(true);
-        return true;
-      }
-      return false;
-    };
-
-    // Actualización inmediata para evitar 1s “en falso”
-    if (update()) return;
-
-    const interval = setInterval(() => {
-      if (update()) {
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [signal.timestamp, isFollowed]);
-
   const handleCopy = () => {
     const text = `[LITE] ${signal.token} ${signal.timeframe
       } — ${signal.direction} | Entry ${signal.entry} | TP ${signal.tp} | SL ${signal.sl
@@ -124,10 +88,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleToggleFollow = () => {
-    if (isExpired && !isFollowed) return;
-    toggleFollow(signal);
-  };
+
 
   return (
     <div
@@ -247,17 +208,13 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
       <div className="flex justify-between items-center pt-3 border-t border-slate-800/50">
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <Clock size={12} />
-          {new Date(signal.timestamp).toLocaleTimeString()} UTC
+          {new Date(signal.timestamp).toLocaleTimeString()}
         </div>
 
         <div className="flex items-center gap-2">
           {/* Discuss */}
           <button
             onClick={() => {
-              // Dispatch synthetic event or use a global context to open chat
-              // Ideally parent should handle this, but for MVP we can use a custom event or props (if we refactor)
-              // For now, let's assume we pass a prop or use a global store.
-              // Simpler: Dispatch event to be caught by App.tsx or Layout
               window.dispatchEvent(new CustomEvent('open-advisor-chat', {
                 detail: {
                   token: signal.token,
@@ -273,30 +230,16 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
             DISCUSS
           </button>
 
-          {/* Track button con expiry */}
+          {/* Track button simple */}
           <button
-            onClick={handleToggleFollow}
-            disabled={isExpired && !isFollowed}
+            onClick={() => toggleFollow(signal)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95 duration-100 ${isFollowed
               ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20'
-              : isExpired
-                ? 'bg-slate-800 text-slate-600 border-slate-800 cursor-not-allowed'
-                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white hover:border-slate-500'
+              : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white hover:border-slate-500'
               }`}
           >
-            {isFollowed ? (
-              <BookmarkCheck size={14} />
-            ) : isExpired ? (
-              <AlertTriangle size={14} />
-            ) : (
-              <Bookmark size={14} />
-            )}
-
-            {isFollowed
-              ? 'TRACKING'
-              : isExpired
-                ? 'EXPIRED'
-                : `TRACK (${timeLeft.toFixed(0)}s)`}
+            {isFollowed ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+            {isFollowed ? 'TRACKING' : 'TRACK'}
           </button>
 
           {/* Copy */}
