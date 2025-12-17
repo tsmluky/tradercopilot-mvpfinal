@@ -2,35 +2,48 @@ import React, { useState, useEffect } from "react";
 import { analyzeLite, analyzePro, getOHLCV } from "../services/api";
 import type { SignalLite, ProResponse } from "../types";
 import { ProAnalysisViewer } from "../components/ProAnalysisViewer";
-import { Copy, Check, Share2, Sparkles, BarChart2, MessageCircle } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ThinkingOverlay } from "../components/ThinkingOverlay";
-import { SignalChart } from "../components/SignalChart";
-import { formatPrice } from "../utils/format";
+import { SignalCard } from "../components/SignalCard";
+import { TokenSelector } from "../components/TokenSelector";
+import { SignalChart } from "../components/SignalChart"; // Still needed? SignalCard doesn't have chart built-in? 
+// Wait, SignalCard DOES NOT have chart built-in in the code I viewed. It has RR bar.
+// I need to check SignalCard again.
+// Viewed SignalCard.tsx: It does NOT have the chart. 
+// However, the AnalysisPage has a "LIVE MARKET CONTEXT" chart.
+// The user request was "Tracking button". `SignalCard` has it.
+// I should render `SignalChart` AND `SignalCard` (for the metrics/tracking).
+// The `SignalCard` in `AnalysisPage` will replace the "Execution Block" and "Rationale Section".
 
 type Mode = "LITE" | "PRO";
 
-const TOKENS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT", "LINK", "LTC", "MATIC", "UNI", "ATOM", "NEAR"];
+const DEFAULT_TOKENS = ["BTC", "ETH", "SOL"];
 const TIMEFRAMES = ["1h", "4h", "1d"] as const;
 
 export const AnalysisPage: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+
+  // Clean tokens list
   const availableTokens = userProfile?.user.allowed_tokens && userProfile.user.allowed_tokens.length > 0
     ? userProfile.user.allowed_tokens
-    : TOKENS;
+    : DEFAULT_TOKENS;
 
   const [mode, setMode] = useState<Mode>("LITE");
   const [token, setToken] = useState<string>(availableTokens[0] || "ETH");
   const [timeframe, setTimeframe] = useState<string>("4h");
 
-  // Reset token if list changes
+  // Reset token if list changes and current not in list (safety)
   useEffect(() => {
     if (availableTokens.length > 0 && !availableTokens.includes(token)) {
+      // If current token is invalid for new list, reset.
+      // But if I want to allow searching ANY token maybe I shouldn't restrict strict equality?
+      // For now, strict is safer for entitlements.
       setToken(availableTokens[0]);
     }
-  }, [availableTokens]);
+  }, [availableTokens, userProfile]); // Check dependency
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +58,6 @@ export const AnalysisPage: React.FC = () => {
   // Chart Data
   const [chartData, setChartData] = useState<any[]>([]);
 
-  const [liteCopied, setLiteCopied] = useState(false);
-
   // Streaming Effect Hook
   useEffect(() => {
     if (proResult && proResult.raw) {
@@ -55,9 +66,8 @@ export const AnalysisPage: React.FC = () => {
       let i = 0;
       const fullText = proResult.raw;
 
-      // Speed: 5ms per char = very fast typewriter
       const interval = setInterval(() => {
-        setStreamedRaw((prev) => fullText.slice(0, i + 5)); // Batch 5 chars for performance
+        setStreamedRaw((prev) => fullText.slice(0, i + 5));
         i += 5;
         if (i >= fullText.length) {
           clearInterval(interval);
@@ -79,11 +89,9 @@ export const AnalysisPage: React.FC = () => {
     setChartData([]);
 
     try {
-      // 1. Fetch Chart Data in Parallel (for visualization)
       const dataPromise = getOHLCV(token, timeframe);
 
       if (mode === "LITE") {
-        // QUICK mode uses standard loading
         const [signal, ohlcv] = await Promise.all([
           analyzeLite(token, timeframe),
           dataPromise
@@ -92,7 +100,6 @@ export const AnalysisPage: React.FC = () => {
         setChartData(ohlcv);
 
       } else {
-        // PRO mode
         const [signal, ohlcv] = await Promise.all([
           analyzePro(token, timeframe, true),
           dataPromise
@@ -107,21 +114,6 @@ export const AnalysisPage: React.FC = () => {
       setIsLoading(false);
     }
   }
-
-  const handleCopyLite = () => {
-    if (!liteResult) return;
-    const text = `⚡ *TRADER COPILOT LITE* ⚡\n` +
-      `Asset: ${liteResult.token}\n` +
-      `Signal: ${liteResult.direction} (Confidence: ${(liteResult.confidence * 100).toFixed(0)}%)\n` +
-      `Entry: ${liteResult.entry}\n` +
-      `TP: ${liteResult.tp}\n` +
-      `SL: ${liteResult.sl}\n\n` +
-      `Rationale: ${liteResult.rationale}`;
-
-    navigator.clipboard.writeText(text);
-    setLiteCopied(true);
-    setTimeout(() => setLiteCopied(false), 2000);
-  };
 
   return (
     <div className="space-y-6">
@@ -158,24 +150,19 @@ export const AnalysisPage: React.FC = () => {
 
         {/* Inputs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 relative z-20">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Asset
             </label>
-            <select
+            <TokenSelector
               value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none font-medium transition-shadow"
-            >
-              {availableTokens.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              onChange={setToken}
+              availableTokens={availableTokens}
+              isProUser={mode === "PRO" || userProfile?.user.subscription_status !== 'free'}
+            />
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 z-10">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Timeframe
             </label>
@@ -192,7 +179,7 @@ export const AnalysisPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end z-10">
             <button
               type="button"
               onClick={handleGenerate}
@@ -230,35 +217,6 @@ export const AnalysisPage: React.FC = () => {
               Analysis Result
               {isStreaming && <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
             </h2>
-            {mode === "LITE" && liteResult && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate('/advisor', {
-                    state: {
-                      context: {
-                        token: liteResult.token,
-                        direction: liteResult.direction,
-                        entry: liteResult.entry,
-                        tp: liteResult.tp,
-                        sl: liteResult.sl,
-                        timeframe: liteResult.timeframe
-                      }
-                    }
-                  })}
-                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition-colors shadow-lg shadow-indigo-500/20"
-                >
-                  <MessageCircle size={14} />
-                  Discuss
-                </button>
-                <button
-                  onClick={handleCopyLite}
-                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors border border-slate-700"
-                >
-                  {liteCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                  {liteCopied ? "Copied" : "Copy"}
-                </button>
-              </div>
-            )}
           </div>
 
           {!liteResult && !proResult && !error && (
@@ -271,50 +229,11 @@ export const AnalysisPage: React.FC = () => {
           )}
 
           {mode === "LITE" && liteResult && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              {/* Header / Meta */}
-              <div className="flex items-center justify-between p-5 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-inner">
-                    <span className="font-bold text-lg text-indigo-400">{liteResult.token}</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border shadow-sm ${liteResult.direction.toLowerCase() === "long"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-emerald-900/20"
-                        : "bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-rose-900/20"
-                        }`}>
-                        {liteResult.direction}
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono border border-slate-700/50 px-2 py-1 rounded-md">
-                        {liteResult.timeframe}
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-500 font-medium">
-                      Generated {new Date(liteResult.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-                {/* Confidence Ring */}
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Confidence Score</div>
-                  <div className={`text-2xl font-black tracking-tight ${liteResult.confidence >= 0.8 ? 'text-emerald-400 drop-shadow-sm' :
-                    liteResult.confidence >= 0.6 ? 'text-amber-400' : 'text-slate-400'
-                    }`}>
-                    {(liteResult.confidence * 100).toFixed(0)}%
-                  </div>
-                </div>
-              </div>
-
-
-              {/* Chart Block */}
+              {/* 1. Chart (Context) - Kept separate as SignalCard doesn't have it */}
               {chartData.length > 0 && (
-                <div className="animate-in fade-in duration-700 delay-150">
-                  <div className="flex items-center gap-2 mb-2 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                    <BarChart2 size={12} className="text-indigo-500" />
-                    Live Market Context
-                  </div>
+                <div className="p-4 bg-slate-950/30 rounded-2xl border border-slate-800">
                   <SignalChart
                     data={chartData}
                     entry={liteResult.entry}
@@ -325,44 +244,9 @@ export const AnalysisPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Execution Block */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Entry */}
-                <div className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800/50 flex flex-col items-center justify-center text-center group hover:border-indigo-500/30 transition-all hover:bg-slate-900/60">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 group-hover:text-indigo-400 transition-colors">Entry Zone</span>
-                  <span className="text-2xl font-mono text-slate-100 font-bold group-hover:scale-105 transition-transform">
-                    {formatPrice(liteResult.entry)}
-                  </span>
-                </div>
+              {/* 2. Signal Card (Replaces the custom table/grid) - contains Track, Metrics, Rationale */}
+              <SignalCard signal={liteResult} />
 
-                {/* Take Profit */}
-                <div className="p-5 bg-emerald-950/10 rounded-2xl border border-emerald-900/30 flex flex-col items-center justify-center text-center group hover:border-emerald-500/30 transition-all hover:bg-emerald-950/20">
-                  <span className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-wider mb-2 group-hover:text-emerald-500 transition-colors">Take Profit</span>
-                  <span className="text-2xl font-mono text-emerald-400 font-bold group-hover:scale-105 transition-transform">
-                    {formatPrice(liteResult.tp)}
-                  </span>
-                </div>
-
-                {/* Stop Loss */}
-                <div className="p-5 bg-rose-950/10 rounded-2xl border border-rose-900/30 flex flex-col items-center justify-center text-center group hover:border-rose-500/30 transition-all hover:bg-rose-950/20">
-                  <span className="text-[10px] font-bold text-rose-600/70 uppercase tracking-wider mb-2 group-hover:text-rose-500 transition-colors">Stop Loss</span>
-                  <span className="text-2xl font-mono text-rose-400 font-bold group-hover:scale-105 transition-transform">
-                    {formatPrice(liteResult.sl)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Rationale Section */}
-              <div className="p-6 bg-slate-950/30 rounded-2xl border border-slate-800 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-indigo-900"></div>
-                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Sparkles size={14} className="text-indigo-500" />
-                  AI Reasoning
-                </h3>
-                <p className="text-slate-300 text-sm leading-7 font-light tracking-wide">
-                  {liteResult.rationale}
-                </p>
-              </div>
             </div>
           )}
 

@@ -89,29 +89,31 @@ def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
     """
     Obtiene precio y cambio 24h para múltiples símbolos.
     """
-    # 1. Cache Check
+    # 1. Cache Check (Strict)
     s_key = "-".join(sorted(symbols))
     cache_key = f"market:summary:{hash(s_key)}"
     cached = cache.get(cache_key)
     if cached:
         return cached
 
+    # 2. Try Fetch
     try:
-        exchange = ccxt.binance()
-        # Normalizar a BTC/USDT, ETH/USDT...
-        pairs = [f"{s.upper().replace('USDT','')}/USDT" for s in symbols]
+        exchange = ccxt.binance({
+            'enableRateLimit': True, 
+            'timeout': 3000  # 3s strict timeout for ticker to prevent UI hang
+        })
+        
+        # Normalize: ensure no duplicates and proper format
+        unique_syms = list(set([s.upper().replace("USDT","").replace("-","") for s in symbols]))
+        pairs = [f"{s}/USDT" for s in unique_syms]
         
         # Intentar fetch_tickers (Batch)
         try:
             tickers = exchange.fetch_tickers(pairs)
-        except:
-            # Fallback slow loop
+        except Exception as e:
+            print(f"[MARKET] Wrappper fetch_tickers failed: {e}")
+            # Fallback will return empty list or partials
             tickers = {}
-            for p in pairs:
-                try:
-                    tickers[p] = exchange.fetch_ticker(p)
-                except:
-                    pass
 
         summary = []
         for p in pairs:
@@ -119,7 +121,7 @@ def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
             if t:
                 # Calculate change if not provided
                 change = t.get('percentage')
-                if change is None and t.get('open'):
+                if change is None and t.get('open') and t['open'] > 0:
                     change = ((t['last'] - t['open']) / t['open']) * 100
                 
                 summary.append({
@@ -128,13 +130,15 @@ def get_market_summary(symbols: List[str]) -> List[Dict[str, Any]]:
                     "change_24h": change or 0.0
                 })
         
-        # 2. Set Cache: 5s TTL for Summary (Price sensitivity)
+        # 3. Set Cache: 10s TTL - increased slightly to reduce spam
         if summary:
-            cache.set(cache_key, summary, ttl=5)
+            cache.set(cache_key, summary, ttl=10)
             
         return summary
+
     except Exception as e:
         print(f"[MARKET DATA] Error getting summary: {e}")
+        # Return empty list so UI handles "loading" or empty state gracefully instead of 500
         return []
 
 def get_current_price(symbol: str) -> Optional[float]:

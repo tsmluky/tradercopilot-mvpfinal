@@ -25,21 +25,29 @@ TOKENS_FREE = {
 }
 
 TOKENS_TRADER = TOKENS_FREE.union({
-    "BNB", "XRP", "ADA", "DOGE", "TON", "AVAX", "DOT", "LINK",
-    "POL", "LTC", "BCH", "TRX", "ATOM", "NEAR", "SUI", "APT", "OP", "ARB", "UNI", "AAVE",
-    "PENDLE", "RENDER"
+    "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "LINK", "LTC", "MATIC", "BCH", 
+    "UNI", "ATOM", "NEAR", "APT", "SUI", "TON", "TRX", "ETC", "XLM", "FIL"
 })
 
-# Full Pro List (Set for O(1) lookup)
+# Full Pro List (Set for O(1) lookup) - Includes Top 100+ and Memes
 TOKENS_PRO = TOKENS_TRADER.union({
-    "FIL", "ICP", "XLM", "HBAR", "ALGO", "VET", "EGLD", "KAS", "XMR", "ETC", "XTZ", 
-    "THETA", "EOS", "NEO", "IOTA", "DASH", "ZEC", "KSM", "FLOW", "FTM", "KLAY", "ZIL", 
-    "HNT", "CHZ", "BAT", "APE", "SAND", "MANA", "AXS", "GALA", "GMT", "ILV", "IMX", 
-    "ENJ", "LRC", "LPT", "MKR", "LDO", "COMP", "CRV", "CVX", "SNX", "DYDX", "GMX", 
-    "1INCH", "BAL", "SUSHI", "YFI", "FXS", "RPL", "KAVA", "FET", "TAO", "ONDO", "INJ", 
-    "TIA", "SEI", "STX", "RUNE", "AXL", "JUP", "JTO", "RAY", "ORCA", "BONK", "WIF", 
-    "PEPE", "SHIB", "FLOKI", "PYTH", "BAND", "ROSE", "MINA", "AR", "CFX", "KDA", "JASMY", 
-    "WOO", "WLD"
+    # DeFi / Layer 1/2
+    "ARB", "OP", "STRK", "BLUR", "DYDX", "GMX", "SNX", "COMP", "AAVE", "MKR", "LDO", "RPL",
+    "CRV", "CVX", "PENDLE", "FXS", "LQTY", "ENS", "1INCH", "BAL", "SUSHI", "YFI", "ZRX",
+    "INJ", "TIA", "SEI", "SUI", "APT", "KAS", "ALGO", "HBAR", "EGLD", "VET", "THETA", "ICP",
+    "MINA", "IMX", "FLOW", "AXS", "SAND", "MANA", "GALA", "ENJ", "CHZ", "APE", "RENDER",
+    "GRT", "FET", "AGIX", "OCEAN", "WLD", "TAO", "JASMY", "AKT", "AR", "RUNE", "STX",
+    "KDA", "CFX", "CKB", "IOT", "ZIL", "XTZ", "EOS", "NEO", "IOTA", "DASH", "ZEC", "XMR",
+    "KLAY", "BTT", "CAKE", "TWT", "LUNC", "USTC", "ORDI", "SATS",
+    
+    # Solana Ecosystem
+    "JUP", "JTO", "PYTH", "RAY", "ORCA", "BONK", "WIF", "BOME", "POPCAT", "MEW",
+    
+    # Memes / Degen
+    "PEPE", "SHIB", "FLOKI", "MEME", "DOGE", "BRETT", "MOG", "TURBO",
+    
+    # New / Trending
+    "ONDO", "ENA", "ETHFI", "REZ", "NOT", "ZK", "ZRO", "BLAST"
 })
 
 # Feature Quotas (Daily)

@@ -845,29 +845,38 @@ def compute_stats_summary() -> Dict[str, Any]:
         try:
             day_ago = datetime.utcnow() - timedelta(hours=24)
             
-            # Signals evaluated in last 24h
-            eval_24h_count = db.query(func.count(SignalEvaluation.id)).filter(
-                SignalEvaluation.evaluated_at >= day_ago
-            ).scalar() or 0
+            # Filter out test sources
+            test_sources = ['audit_script', 'verification']
             
-            # Total evaluations
-            total_eval = db.query(func.count(SignalEvaluation.id)).scalar() or 0
-            
-            # Win/Loss counts in last 24h
-            tp_24h = db.query(func.count(SignalEvaluation.id)).filter(
+            # Signals evaluated in last 24h (Real signals only)
+            eval_24h_count = db.query(func.count(SignalEvaluation.id)).join(Signal).filter(
                 SignalEvaluation.evaluated_at >= day_ago,
-                SignalEvaluation.result == 'WIN'
+                Signal.source.notin_(test_sources)
             ).scalar() or 0
             
-            sl_24h = db.query(func.count(SignalEvaluation.id)).filter(
+            # Total evaluations (Real only)
+            total_eval = db.query(func.count(SignalEvaluation.id)).join(Signal).filter(
+                Signal.source.notin_(test_sources)
+            ).scalar() or 0
+            
+            # Win/Loss counts in last 24h (Real only)
+            tp_24h = db.query(func.count(SignalEvaluation.id)).join(Signal).filter(
                 SignalEvaluation.evaluated_at >= day_ago,
-                SignalEvaluation.result == 'LOSS'
+                SignalEvaluation.result == 'WIN',
+                Signal.source.notin_(test_sources)
             ).scalar() or 0
             
-            # LITE signals in last 24h
+            sl_24h = db.query(func.count(SignalEvaluation.id)).join(Signal).filter(
+                SignalEvaluation.evaluated_at >= day_ago,
+                SignalEvaluation.result == 'LOSS',
+                Signal.source.notin_(test_sources)
+            ).scalar() or 0
+            
+            # LITE signals in last 24h (Real only)
             lite_24h = db.query(func.count(Signal.id)).filter(
                 Signal.timestamp >= day_ago,
-                Signal.mode == 'LITE'
+                Signal.mode == 'LITE',
+                Signal.source.notin_(test_sources)
             ).scalar() or 0
             
             # Calculate win rate
@@ -877,10 +886,11 @@ def compute_stats_summary() -> Dict[str, Any]:
             # Open signals (LITE signals not yet evaluated)
             open_signals_est = max(lite_24h - eval_24h_count, 0)
             
-            # [NEW] Calculate PnL (7d)
+            # [NEW] Calculate PnL (7d) (Real only)
             week_ago = datetime.utcnow() - timedelta(days=7)
-            pnl_7d_total = db.query(func.sum(SignalEvaluation.pnl_r)).filter(
-                SignalEvaluation.evaluated_at >= week_ago
+            pnl_7d_total = db.query(func.sum(SignalEvaluation.pnl_r)).join(Signal).filter(
+                SignalEvaluation.evaluated_at >= week_ago,
+                Signal.source.notin_(test_sources)
             ).scalar() or 0.0
 
             # [NEW] Active Agents Count (Requires StrategyConfig check)
