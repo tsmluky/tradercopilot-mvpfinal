@@ -29,6 +29,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 try {
                     // Validate token with backend
                     const data = await api.getMe();
+
+                    // Fetch Entitlements (Permissions/Tokens)
+                    let allowedTokens = ['BTC', 'ETH', 'SOL'];
+                    try {
+                        const ent = await api.get('/auth/me/entitlements');
+                        if (ent && ent.allowed_tokens) {
+                            allowedTokens = ent.allowed_tokens;
+                        }
+                    } catch (e) {
+                        console.warn('Failed to fetch entitlements', e);
+                    }
+
                     // Map Backend Plan (FREE, PRO, OWNER) to Frontend (free, trader, pro)
                     const backendPlan = data.plan?.toUpperCase() || 'FREE';
                     let frontendPlan: 'free' | 'trader' | 'pro' = 'free';
@@ -42,7 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             role: data.role, // ensure role is passed
                             subscription_status: frontendPlan,
                             onboarding_completed: localStorage.getItem('onboarding_completed') === 'true',
-                            avatar_url: data.avatar_url || `https://ui-avatars.com/api/?name=${data.name}&background=10b981&color=fff`
+                            avatar_url: data.avatar_url || `https://ui-avatars.com/api/?name=${data.name}&background=10b981&color=fff`,
+                            allowed_tokens: allowedTokens
                         },
                         preferences: {
                             favorite_tokens: ['eth', 'btc'],

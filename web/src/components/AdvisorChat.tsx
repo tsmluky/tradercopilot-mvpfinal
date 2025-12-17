@@ -57,41 +57,51 @@ export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentT
     scrollToBottom();
   }, [messages, isOpen]);
 
-  // Listen for 'open-advisor-chat' events only if NOT embedded
+  // Listen for 'open-advisor-chat' events
   useEffect(() => {
     if (embedded) return;
     const handleOpenEvent = (e: CustomEvent) => {
       setIsOpen(true);
+      // Auto-analyze if context is provided
+      if (e.detail) {
+        const { token, direction, entry, timeframe } = e.detail;
+        if (token) {
+          // Reset messages if it's a new token or context switch?
+          // For now, simpler is to just append analysis relative to new context.
+
+          // Construct auto-context object
+          const ctx = { token, timeframe: timeframe || '4h' }; // default to 4h if missing
+
+          // Only trigger if we haven't just triggered for this exact context (debounce/dedupe?)
+          // Or just trust the user click.
+
+          // Trigger hidden auto-send
+          handleSend(ctx, true, `Analyze ${token} ${direction} setup at ${entry}. Risk assessment?`);
+        }
+      }
     };
 
     window.addEventListener('open-advisor-chat', handleOpenEvent as EventListener);
     return () => window.removeEventListener('open-advisor-chat', handleOpenEvent as EventListener);
   }, [embedded]);
 
-  const handleSend = async (overrideContext?: any, isInitialAutoSend: boolean = false) => {
-    // Allow empty input if it's the initial auto-send (context-based)
+  const handleSend = async (overrideContext?: any, isInitialAutoSend: boolean = false, customPrompt?: string) => {
+    // Allow empty input if it's the initial auto-send
     if (!isInitialAutoSend && (!input.trim() || isLoading)) return;
 
     let userMsg: ChatMessage;
 
     if (isInitialAutoSend) {
-      // Generar prompt automático invisible para el usuario
+      // System / Implicit Prompt
       userMsg = {
         id: Date.now().toString(),
         role: 'user',
-        content: `Analyze the following trade setup immediately and provide a risk assessment: Token ${overrideContext?.token}, Direction ${overrideContext?.direction}, Entry ${overrideContext?.entry}. Be concise.`,
+        content: customPrompt || `Analyze the following trade setup: ${overrideContext?.token}.`,
         type: 'text',
         timestamp: new Date().toISOString(),
-        // Optional: We could hide this from the UI if we supported a 'hidden' flag, 
-        // but for now let's just not add it to 'messages' state if we want it hidden, 
-        // OR better, let's add it so the user sees what was asked.
-        // User asked for "automatic analysis", showing the prompt "System: Analyzing..." might be better.
-        // Let's Just send it to backend but NOT add to UI state? 
-        // No, let's make it look like a system trigger.
       };
-      // Don't add to UI messages to keep it clean, OR add a "system" note.
-      // Simplified: Just send it to API, don't setMessages(userMsg). 
-      // The user will just see the "Agent" replying.
+      // We ADD this to UI so user sees "Agent" is responding to *something*
+      setMessages(prev => [...prev, userMsg]);
     } else {
       userMsg = {
         id: Date.now().toString(),
@@ -308,16 +318,7 @@ export const AdvisorChat: React.FC<AdvisorChatProps> = ({ currentToken, currentT
         </div>
       )}
 
-      {/* Toggle Button - Only visible when closed */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`pointer-events-auto group flex items-center gap-2 px-4 py-3 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25`}
-        >
-          <span className="text-2xl group-hover:rotate-12 transition-transform">🛡️</span>
-          <span className="font-bold">Advisor Chat</span>
-        </button>
-      )}
+
     </div>
   );
 };

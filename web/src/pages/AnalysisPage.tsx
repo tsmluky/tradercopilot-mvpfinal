@@ -4,20 +4,33 @@ import type { SignalLite, ProResponse } from "../types";
 import { ProAnalysisViewer } from "../components/ProAnalysisViewer";
 import { Copy, Check, Share2, Sparkles, BarChart2, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { ThinkingOverlay } from "../components/ThinkingOverlay";
 import { SignalChart } from "../components/SignalChart";
 import { formatPrice } from "../utils/format";
 
 type Mode = "LITE" | "PRO";
 
-const TOKENS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT", "LINK", "LTC", "MATIC", "UNI", "ATOM", "NEAR"] as const;
+const TOKENS = ["BTC", "ETH", "SOL", "XRP", "BNB", "DOGE", "ADA", "AVAX", "DOT", "LINK", "LTC", "MATIC", "UNI", "ATOM", "NEAR"];
 const TIMEFRAMES = ["1h", "4h", "1d"] as const;
 
 export const AnalysisPage: React.FC = () => {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  const availableTokens = userProfile?.user.allowed_tokens && userProfile.user.allowed_tokens.length > 0
+    ? userProfile.user.allowed_tokens
+    : TOKENS;
+
   const [mode, setMode] = useState<Mode>("LITE");
-  const [token, setToken] = useState<string>("ETH");
+  const [token, setToken] = useState<string>(availableTokens[0] || "ETH");
   const [timeframe, setTimeframe] = useState<string>("4h");
+
+  // Reset token if list changes
+  useEffect(() => {
+    if (availableTokens.length > 0 && !availableTokens.includes(token)) {
+      setToken(availableTokens[0]);
+    }
+  }, [availableTokens]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +167,7 @@ export const AnalysisPage: React.FC = () => {
               onChange={(e) => setToken(e.target.value)}
               className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none font-medium transition-shadow"
             >
-              {TOKENS.map((t) => (
+              {availableTokens.map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>

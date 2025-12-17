@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, CheckCircle, AlertTriangle, Info, BellRing } from 'lucide-react';
 import { Notification as AppNotification } from '../types';
 import { API_BASE_URL } from '../constants';
+import { api } from '../services/api';
 
 // Helper to convert VAPID key
 function urlBase64ToUint8Array(base64String: string) {
@@ -38,9 +39,8 @@ export const NotificationCenter: React.FC = () => {
     const fetchNotifications = async () => {
       try {
         // We use logs as the source of truth for "notifications" for now
-        const res = await fetch(`${API_BASE_URL}/logs/recent?limit=10`);
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.get('/logs/recent?limit=10');
+        if (data) {
           const mapped: AppNotification[] = data.map((log: any) => ({
             id: log.id.toString(),
             title: `${log.direction} ${log.token}`,

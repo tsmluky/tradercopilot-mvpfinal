@@ -101,6 +101,7 @@ export interface User {
   plan?: string; // Backend plan (FREE/PRO/OWNER)
   plan_status?: string;
   onboarding_completed?: boolean;
+  allowed_tokens?: string[];
 }
 
 export interface FollowedSignal extends SignalLite {

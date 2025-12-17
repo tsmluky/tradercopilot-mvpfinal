@@ -261,7 +261,9 @@ export const SignalCard: React.FC<SignalCardProps> = ({ signal }) => {
               window.dispatchEvent(new CustomEvent('open-advisor-chat', {
                 detail: {
                   token: signal.token,
-                  context: signal
+                  direction: signal.direction,
+                  entry: signal.entry,
+                  timeframe: signal.timeframe
                 }
               }));
             }}
