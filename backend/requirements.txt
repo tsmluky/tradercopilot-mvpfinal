@@ -22,3 +22,4 @@ python-multipart>=0.0.6
 bcrypt==3.2.2
 ft-pandas-ta==0.3.16
 redis>=4.0.0
+slowapi>=0.1.9
