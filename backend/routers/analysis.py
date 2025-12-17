@@ -35,7 +35,7 @@ def analyze_lite(request: Request, req: LiteReq, current_user: User = Depends(ge
     Wrapper seguro para capturar errores 500 y mostrarlos en el frontend.
     """
     try:
-        return _analyze_lite_unsafe(req)
+        return _analyze_lite_unsafe(req, current_user)
     except Exception as e:
         print(f"CRITICAL ERROR IN ANALYZE_LITE: {e}")
         traceback.print_exc()
@@ -53,7 +53,7 @@ def analyze_lite(request: Request, req: LiteReq, current_user: User = Depends(ge
             "indicators": {}
         }
 
-def _analyze_lite_unsafe(req: LiteReq):
+def _analyze_lite_unsafe(req: LiteReq, user: User):
     """
     Lógica real de Lite Analysis (Refactored to logic module).
     """
@@ -98,7 +98,7 @@ def _analyze_lite_unsafe(req: LiteReq):
         rationale=lite_signal.rationale,
         source=lite_signal.source,
         extra=indicators,
-        user_id=current_user.id
+        user_id=user.id
     )
     
     log_signal(unified_sig)

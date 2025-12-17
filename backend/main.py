@@ -704,26 +704,26 @@ class AdvisorChatReq(BaseModel):
 @app.post("/analyze/advisor/chat")
 def analyze_advisor_chat(req: AdvisorChatReq):
     """
-    Endpoint para chat interactivo con el Advisor (DeepSeek).
+    Endpoint para chat interactivo con el Advisor (DeepSeek/Gemini via Service).
     """
-    from gemini_client import generate_chat
+    from core.ai_service import get_ai_service
     
     # Convertir modelos Pydantic a dicts para la función
     messages = [{"role": m.role, "content": m.content} for m in req.history]
     
     # Añadir contexto técnico al último mensaje si es relevante
-    # (Opcional: inyectarlo como system prompt adicional o en el último user msg)
     if req.context:
         ctx_str = (
             f"\n[Context: Token={req.context.get('token')}, "
             f"Direction={req.context.get('direction')}, "
             f"Entry={req.context.get('entry')}]"
         )
-        # Añadir al final del último mensaje de usuario para que el modelo lo tenga fresco
         if messages and messages[-1]["role"] == "user":
             messages[-1]["content"] += ctx_str
 
-    response_text = generate_chat(messages)
+    # Use Abstract Service
+    service = get_ai_service()
+    response_text = service.chat(messages)
     
     return {
         "role": "assistant",

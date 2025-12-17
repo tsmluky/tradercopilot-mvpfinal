@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { RefreshCw, Zap, TrendingUp, TrendingDown, Radio, Radar } from 'lucide-react';
@@ -9,6 +10,7 @@ import { TacticalAnalysisDrawer } from '../components/scanner/TacticalAnalysisDr
 // Reusing StatusBadge logic inside cards
 
 export const ScannerPage: React.FC = () => {
+    const navigate = useNavigate();
     const [signals, setSignals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -166,14 +168,13 @@ export const ScannerPage: React.FC = () => {
                     <p className="text-slate-500 max-w-md mx-auto mb-6">
                         No high-probability anomalies detected in the active timeframe. The autonomous fleet is filtering for quality over quantity.
                     </p>
-                    <a
-                        href="/analysis"
-                        onClick={(e) => { e.preventDefault(); window.location.href = '/analysis'; }}
+                    <button
+                        onClick={() => navigate('/analysis')}
                         className="px-6 py-2 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-all font-semibold text-sm flex items-center gap-2"
                     >
                         <Zap size={16} />
                         Launch Manual Analysis
-                    </a>
+                    </button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

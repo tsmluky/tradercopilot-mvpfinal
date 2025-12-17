@@ -176,13 +176,13 @@ def get_ai_service() -> AIProvider:
     elif provider == "deepseek":
         return DeepSeekProvider()
     
-    # Auto-selección: Preferimos Gemini si hay key (Free Tier potente)
-    if gemini_key:
-        print("[AI Service] Auto-selecting: Gemini")
-        return GeminiProvider()
-    elif deepseek_key:
+    # Auto-selección: Preferimos DeepSeek por costo/estabilidad (User Request)
+    if deepseek_key:
         print("[AI Service] Auto-selecting: DeepSeek")
         return DeepSeekProvider()
+    elif gemini_key:
+        print("[AI Service] Auto-selecting: Gemini")
+        return GeminiProvider()
     
     # Fallback dummy si no hay nada
     print("[AI Service] ⚠️ NO KEYS FOUND. Using Dummy Provider.")

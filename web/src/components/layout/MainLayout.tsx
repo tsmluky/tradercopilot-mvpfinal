@@ -58,7 +58,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         { id: '/strategies', label: 'Quant', icon: Activity },
         { id: '/backtest', label: 'Backtest', icon: FlaskConical },
         { id: '/logs', label: 'System Logs', icon: Terminal },
-        { id: '/membership', label: 'Membership', icon: Zap },
+        { id: '/pricing', label: 'Membership', icon: Zap },
         { id: '/settings', label: 'Settings', icon: Settings },
     ];
 
