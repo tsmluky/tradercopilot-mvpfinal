@@ -62,6 +62,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         { id: '/settings', label: 'Settings', icon: Settings },
     ];
 
+    // Add Admin Link if Owner/Admin
+    if (user?.role === 'admin' || user?.plan === 'OWNER') {
+        navItems.push({ id: '/admin', label: 'Admin Panel', icon: Terminal }); // Using Terminal icon or Shield if imported
+    }
+
     const activeItem = navItems.find(item => location.pathname === item.id) || navItems[0];
 
     return (
